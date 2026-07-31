@@ -1,0 +1,6 @@
+{
+  "name": "AegisPass AI Visitor Platform",
+  "description": "Enterprise AI-powered Visitor Verification, ID OCR, Live Face Match & Real-time Gate Access Management System",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
