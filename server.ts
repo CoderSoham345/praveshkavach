@@ -1169,30 +1169,8 @@ app.get('/api/analytics', (req, res) => {
   });
 });
 
-// Global error handler - MUST be before Vite middleware
-app.use((err: any, req: any, res: any, next: any) => {
-  console.error('[v0] Global error handler caught:', err.message);
-  console.error('[v0] Stack:', err.stack);
-  res.status(500).json({ 
-    success: false, 
-    error: 'Internal server error',
-    message: err.message 
-  });
-});
-
-// 404 handler - for any undefined routes
-app.use((req: any, res: any) => {
-  console.warn('[v0] 404 - Route not found:', req.method, req.path);
-  res.status(404).json({ 
-    success: false, 
-    error: 'Route not found',
-    path: req.path,
-    method: req.method 
-  });
-});
-
 async function startServer() {
-  // Vite middleware for development
+  // Vite middleware for development - MUST come before error handlers
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -1206,6 +1184,28 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Global error handler - MUST be after all routes/middleware
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('[v0] Global error handler caught:', err.message);
+    console.error('[v0] Stack:', err.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error',
+      message: err.message 
+    });
+  });
+
+  // 404 handler - for any undefined routes (MUST be last)
+  app.use((req: any, res: any) => {
+    console.warn('[v0] 404 - Route not found:', req.method, req.path);
+    res.status(404).json({ 
+      success: false, 
+      error: 'Route not found',
+      path: req.path,
+      method: req.method 
+    });
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[PraveshKavach Server] Running at http://0.0.0.0:${PORT}`);
