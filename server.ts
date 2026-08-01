@@ -832,23 +832,27 @@ Extract structured fields:
       if (responseText) {
         const parsed = JSON.parse(responseText || '{}');
         
+        // CRITICAL: Never add default/hallucinated values
+        // Only use what was actually detected by Gemini
+        const extractedData = {
+          fullName: parsed.fullName || '',
+          dob: parsed.dob || '',
+          gender: parsed.gender || '',
+          fatherName: parsed.fatherName || '',
+          address: parsed.address || '', // IMPORTANT: Front side cards have NO address!
+          pinCode: parsed.pinCode || '',
+          documentNumber: parsed.documentNumber || '',
+          issueDate: parsed.issueDate || '',
+          expiryDate: parsed.expiryDate || '',
+          nationality: parsed.nationality || '',
+          documentType: (docType || 'Aadhaar Card') as any,
+          confidenceScore: parsed.confidenceScore || 0,
+          lowConfidenceFields: parsed.lowConfidenceFields || [],
+        };
+        
         return res.json({
           success: true,
-          extractedData: {
-            fullName: parsed.fullName || 'Not Detected – Please Verify Manually',
-            dob: parsed.dob || '',
-            gender: parsed.gender || 'Male',
-            fatherName: parsed.fatherName || '',
-            address: parsed.address || '', // Never fabricate address on front cards!
-            pinCode: parsed.pinCode || '',
-            documentNumber: parsed.documentNumber || '',
-            issueDate: parsed.issueDate || '',
-            expiryDate: parsed.expiryDate || '',
-            nationality: parsed.nationality || 'Indian',
-            documentType: docType || 'Aadhaar Card',
-            confidenceScore: parsed.confidenceScore || 95,
-            lowConfidenceFields: parsed.lowConfidenceFields || [],
-          },
+          extractedData,
           quality: {
             blurDetected: parsed.blurDetected ?? false,
             reflectionDetected: parsed.reflectionDetected ?? false,
@@ -856,29 +860,31 @@ Extract structured fields:
             edgesDetected: parsed.edgesDetected ?? true,
           },
           source: 'GEMINI_AI_VISION',
+          rawResponse: parsed, // Include raw data for debugging
         });
       }
     }
 
-    // Fallback if GEMINI_API_KEY is not configured or quota limit is reached - Return strictly un-hallucinated OCR response
+    // Fallback if GEMINI_API_KEY is not configured or quota limit is reached
+    // Return empty fields ONLY - NO hallucinated data
     return res.json({
       success: true,
       extractedData: {
-        fullName: 'Not Detected – Please Verify Manually',
+        fullName: '',
         dob: '',
-        gender: 'Male',
+        gender: '',
         fatherName: '',
-        address: '', // Front scan of Aadhaar/PAN has NO address printed on it!
+        address: '',
         pinCode: '',
         documentNumber: '',
         issueDate: '',
         expiryDate: '',
-        nationality: 'Indian',
+        nationality: '',
         documentType: docType || 'Aadhaar Card',
         confidenceScore: 0,
-        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'address'],
+        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender'],
       },
-      rawOcrText: `[ML Kit Local Scan Result]\nDocument Type: ${docType || 'Aadhaar Card'}\nStatus: Please enter or verify details manually`,
+      rawOcrText: `[Local ML Kit Scan - Manual Entry Required]\nDocument Type: ${docType || 'Aadhaar Card'}\nStatus: Gemini API unavailable. Please enter document details manually.\nAll fields must be manually verified.`,
       quality: {
         blurDetected: false,
         reflectionDetected: false,
