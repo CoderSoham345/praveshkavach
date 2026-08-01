@@ -525,7 +525,7 @@ async function pollTelegramUpdates() {
 
             await sendTelegramMessage(chatId, welcomeText, keyboard);
           } else if (text.startsWith('/pending') || text === 'cmd_pending') {
-            const pendingList = visitorsStore.filter((v) => v.status === 'WAITING' || v.status === 'VIEWED');
+            const pendingList = visitorsStore.filter((v) => v.status === 'PENDING' || v.status === 'APPROVED');
             if (pendingList.length === 0) {
               await sendTelegramMessage(chatId, `✅ *No Pending Requests*\nThere are currently no visitor approval requests waiting for your response.`);
             } else {
@@ -534,7 +534,7 @@ async function pollTelegramUpdates() {
                   `---------------------------------------\n` +
                   `👤 *Visitor:* ${v.visitorName}\n` +
                   `🆔 *Pass Number:* ${v.passNumber}\n` +
-                  `🏢 *Unit:* ${v.building} - Flat ${v.flatNumber}\n` +
+                  `🏢 *Unit:* ${v.buildingUnit}\n` +
                   `🎯 *Purpose:* ${v.purpose}\n` +
                   `👮 *Gate:* ${v.gateName} (${v.guardName})`;
 
@@ -561,7 +561,7 @@ async function pollTelegramUpdates() {
             await sendTelegramMessage(chatId, histText);
           } else if (text.startsWith('/status') || text === 'cmd_status') {
             const activeCount = visitorsStore.filter((v) => v.status === 'APPROVED' || v.status === 'CHECKED_IN').length;
-            const pendingCount = visitorsStore.filter((v) => v.status === 'WAITING').length;
+            const pendingCount = visitorsStore.filter((v) => v.status === 'PENDING').length;
             const statusMsg = `🟢 *PRAVESHKAVACH™ SOCIETY SECURITY STATUS*\n` +
               `---------------------------------------\n` +
               `🛡️ *Main Gate:* Active & Guarded\n` +
@@ -611,7 +611,7 @@ async function pollTelegramUpdates() {
           if (callbackData) {
             if (callbackData.startsWith('cmd_')) {
               if (callbackData === 'cmd_pending') {
-                const pendingList = visitorsStore.filter((v) => v.status === 'WAITING' || v.status === 'VIEWED');
+                const pendingList = visitorsStore.filter((v) => v.status === 'PENDING' || v.status === 'APPROVED');
                 if (pendingList.length === 0) {
                   await sendTelegramMessage(chatId, `✅ *No Pending Requests*\nThere are currently no visitor approval requests waiting for your response.`);
                 } else {
@@ -620,7 +620,7 @@ async function pollTelegramUpdates() {
                       `---------------------------------------\n` +
                       `👤 *Visitor:* ${v.visitorName}\n` +
                       `🆔 *Pass Number:* ${v.passNumber}\n` +
-                      `🏢 *Unit:* ${v.building} - Flat ${v.flatNumber}\n` +
+                      `🏢 *Unit:* ${v.buildingUnit}\n` +
                       `🎯 *Purpose:* ${v.purpose}\n` +
                       `👮 *Gate:* ${v.gateName} (${v.guardName})`;
 
@@ -647,7 +647,7 @@ async function pollTelegramUpdates() {
                 await sendTelegramMessage(chatId, histText);
               } else if (callbackData === 'cmd_status') {
                 const activeCount = visitorsStore.filter((v) => v.status === 'APPROVED' || v.status === 'CHECKED_IN').length;
-                const pendingCount = visitorsStore.filter((v) => v.status === 'WAITING').length;
+                const pendingCount = visitorsStore.filter((v) => v.status === 'PENDING').length;
                 const statusMsg = `🟢 *PRAVESHKAVACH™ SOCIETY SECURITY STATUS*\n` +
                   `---------------------------------------\n` +
                   `🛡️ *Main Gate:* Active & Guarded\n` +
