@@ -6,11 +6,9 @@ import {
   ShieldCheck,
   QrCode,
   Scan,
-  ShieldAlert,
-  ImageIcon
+  ShieldAlert
 } from 'lucide-react';
 import { DocumentType } from '../types';
-import { MOCK_SAMPLE_IDS } from '../data/mockData';
 import { DocumentScannerCanvas } from './DocumentScannerCanvas';
 
 interface Step2ScanFrontProps {
@@ -46,11 +44,6 @@ export const Step2ScanFront: React.FC<Step2ScanFrontProps> = ({
     if (capturedImage) {
       onCaptureCompleted(capturedImage);
     }
-  };
-
-  const handleSelectSample = (sample: typeof MOCK_SAMPLE_IDS[0]) => {
-    setSelectedDocType(sample.docType);
-    onCaptureCompleted(sample.url, true, sample.ocr);
   };
 
   return (
@@ -172,37 +165,8 @@ export const Step2ScanFront: React.FC<Step2ScanFrontProps> = ({
         </div>
       )}
 
-      {/* Instant Demo Test Cards Picker */}
-      <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <ImageIcon className="w-4 h-4 text-cyan-400" />
-            <span>Instant Test Cards (Aadhaar & PAN)</span>
-          </span>
-          <span className="text-[11px] text-slate-400">Click any card for instant AI OCR simulation</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {MOCK_SAMPLE_IDS.filter((s) => s.docType === 'Aadhaar Card' || s.docType === 'PAN Card').map((sample, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSelectSample(sample)}
-              className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-400/60 text-left flex items-center gap-3 group transition-all"
-              id={`sample-card-${idx}`}
-            >
-              <img
-                src={sample.url}
-                alt={sample.name}
-                className="w-14 h-10 object-cover rounded border border-slate-700 group-hover:scale-105 transition-transform"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{sample.name}</p>
-                <p className="text-[10px] text-cyan-400 font-semibold">{sample.ocr.fullName}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* REMOVED: Test Cards Picker - All data now must come from real OCR via Gemini API
+           See ROOT_CAUSE_ANALYSIS.md for details on removing sample data injection */}
 
     </div>
   );
