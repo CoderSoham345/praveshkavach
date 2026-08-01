@@ -74,7 +74,8 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// Telegram Bot Configuration API
+// Telegram Bot Configuration API - Read-Only
+// Only environment variables are used for configuration (not frontend input)
 app.get('/api/telegram/config', (req, res) => {
   res.json({
     success: true,
@@ -88,31 +89,18 @@ app.get('/api/telegram/config', (req, res) => {
   });
 });
 
-app.post('/api/telegram/config', (req, res) => {
-  const { botToken, defaultChatId, botEnabled } = req.body;
-  if (botToken !== undefined) telegramConfig.botToken = botToken;
-  if (defaultChatId !== undefined) telegramConfig.defaultChatId = defaultChatId;
-  if (botEnabled !== undefined) telegramConfig.botEnabled = botEnabled;
+// POST endpoint removed - Configuration ONLY via environment variables for security
+// Frontend no longer sends config data to backend
 
-  res.json({ 
-    success: true, 
-    message: 'Telegram Bot configuration saved successfully', 
-    config: {
-      botEnabled: telegramConfig.botEnabled,
-      hasBotToken: !!telegramConfig.botToken,
-      defaultChatId: telegramConfig.defaultChatId,
-      lastMessageTime: telegramConfig.lastMessageTime,
-    }
-  });
-});
-
-// Test Telegram Connection Endpoint
+// Test Telegram Connection Endpoint - Uses only backend environment variables
 app.post('/api/telegram/test', async (req, res) => {
   console.log('[v0] Telegram test started');
   try {
-    const token = req.body?.botToken || telegramConfig.botToken;
-    const chatId = req.body?.defaultChatId || telegramConfig.defaultChatId;
+    // ALWAYS use environment variables, never frontend input
+    const token = telegramConfig.botToken;
+    const chatId = telegramConfig.defaultChatId;
 
+    console.log('[v0] Using Telegram config from environment variables');
     console.log('[v0] Telegram token present:', !!token);
     console.log('[v0] Telegram chat ID present:', !!chatId);
 

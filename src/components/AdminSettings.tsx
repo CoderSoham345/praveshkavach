@@ -31,11 +31,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
   const [livenessThreshold, setLivenessThreshold] = useState<number>(85);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
-  // Telegram Config state
-  const [botTokenInput, setBotTokenInput] = useState<string>('');
-  const [chatIdInput, setChatIdInput] = useState<string>('8612476614');
-  const [botEnabled, setBotEnabled] = useState<boolean>(true);
-  const [lastMessageTime, setLastMessageTime] = useState<string | null>(null);
+  // Telegram Config state (read-only, from environment variables)
+  const [botConfigStatus, setBotConfigStatus] = useState<{
+    botConfigured: boolean;
+    chatIdConfigured: boolean;
+    lastMessageTime: string | null;
+  }>({
+    botConfigured: false,
+    chatIdConfigured: false,
+    lastMessageTime: null,
+  });
   
   // Test connection state
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
@@ -47,20 +52,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
   }>({
     tested: false,
     success: false,
-    message: 'Click "Test Telegram Connection" to verify configuration',
+    message: 'Click "Test Telegram Connection" to verify backend configuration',
   });
 
   useEffect(() => {
-    // Fetch initial Telegram settings from server
+    // Fetch Telegram settings status from server (read-only)
     fetch('/api/telegram/config')
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.config) {
-          setBotEnabled(data.config.botEnabled ?? true);
-          setChatIdInput(data.config.defaultChatId || '8612476614');
-          if (data.config.lastMessageTime) {
-            setLastMessageTime(data.config.lastMessageTime);
-          }
+          setBotConfigStatus({
+            botConfigured: data.config.hasBotToken,
+            chatIdConfigured: !!data.config.defaultChatId,
+            lastMessageTime: data.config.lastMessageTime,
+          });
         }
       })
       .catch((err) => console.warn('Failed to load Telegram settings:', err));
@@ -68,16 +73,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
 
   const handleTestTelegram = async () => {
     setTestingConnection(true);
-    console.log('[v0] Testing Telegram connection with token and chat ID');
+    console.log('[v0] Testing Telegram connection using backend environment variables');
     try {
       console.log('[v0] Sending POST to /api/telegram/test');
       const res = await fetch('/api/telegram/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          botToken: botTokenInput.trim() || undefined,
-          defaultChatId: chatIdInput.trim() || undefined,
-        }),
+        body: JSON.stringify({}), // No user input - uses env vars only
       });
       
       console.log('[v0] Response status:', res.status, res.statusText);
@@ -100,7 +102,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
         botName: data.botInfo?.username ? `@${data.botInfo.username}` : undefined,
       });
       if (data.success) {
-        setLastMessageTime(new Date().toISOString());
+        setBotConfigStatus(prev => ({
+          ...prev,
+          lastMessageTime: new Date().toISOString(),
+        }));
       }
     } catch (e: any) {
       console.error('[v0] Telegram test error:', e);
@@ -114,26 +119,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
     }
   };
 
-  const handleSaveTelegramConfig = async () => {
-    try {
-      await fetch('/api/telegram/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          botToken: botTokenInput.trim() || undefined,
-          defaultChatId: chatIdInput.trim(),
-          botEnabled,
-        }),
-      });
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 2500);
-    } catch (e) {
-      console.error('Error saving Telegram config:', e);
-    }
-  };
-
   const handleSaveSettings = () => {
-    handleSaveTelegramConfig();
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2500);
   };
 
   return (
@@ -176,12 +164,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
               </h3>
               
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1 ${
-                botEnabled 
+                botConfigStatus.botConfigured && botConfigStatus.chatIdConfigured
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                   : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
               }`}>
                 <Activity className="w-3 h-3" />
-                <span>{botEnabled ? 'Bot Active' : 'Bot Disabled'}</span>
+                <span>{botConfigStatus.botConfigured && botConfigStatus.chatIdConfigured ? 'Bot Configured' : 'Bot Not Configured'}</span>
               </span>
             </div>
 
@@ -222,83 +210,73 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
               )}
             </div>
 
-            {/* Inputs & Controls */}
+            {/* Backend Configuration Status (Read-Only) */}
             <div className="space-y-3 text-xs">
               
-              <div>
-                <label className="block text-slate-300 font-bold mb-1">
-                  Telegram Bot Token <span className="text-slate-500 font-normal">(Loaded securely from Environment)</span>
-                </label>
-                <input
-                  type="password"
-                  placeholder="8612476614:AAErLL7CNMivZYmYpCBMEjzJQfhd2KQO65U"
-                  value={botTokenInput}
-                  onChange={(e) => setBotTokenInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-bold mb-1">
-                  Default Telegram Chat ID / Resident Gateway ID
-                </label>
-                <input
-                  type="text"
-                  placeholder="8612476614"
-                  value={chatIdInput}
-                  onChange={(e) => setChatIdInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <div>
-                  <p className="font-bold text-white">Enable Bot Notifications & Interactive Callbacks</p>
-                  <p className="text-[11px] text-slate-400">Send approval requests to resident Telegram accounts instantly</p>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-700 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-slate-300">Bot Token</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Configured via TELEGRAM_BOT_TOKEN environment variable</p>
+                  </div>
+                  {botConfigStatus.botConfigured ? (
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-[10px] whitespace-nowrap flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      Configured
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-400 font-bold text-[10px] whitespace-nowrap flex items-center gap-1">
+                      <X className="w-3 h-3" />
+                      Not Set
+                    </span>
+                  )}
                 </div>
-                <input
-                  type="checkbox"
-                  checked={botEnabled}
-                  onChange={(e) => setBotEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-cyan-400 cursor-pointer"
-                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-700 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-slate-300">Chat ID</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Configured via TELEGRAM_CHAT_ID environment variable</p>
+                  </div>
+                  {botConfigStatus.chatIdConfigured ? (
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-[10px] whitespace-nowrap flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      Configured
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-400 font-bold text-[10px] whitespace-nowrap flex items-center gap-1">
+                      <X className="w-3 h-3" />
+                      Not Set
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Info Stats */}
-              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
-                <span>Last Telegram Notification Time:</span>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-2">
+                <span>Last Telegram Notification:</span>
                 <span className="font-mono text-cyan-400 font-bold">
-                  {lastMessageTime ? new Date(lastMessageTime).toLocaleTimeString() : 'Active System Session'}
+                  {botConfigStatus.lastMessageTime ? new Date(botConfigStatus.lastMessageTime).toLocaleTimeString() : 'No messages yet'}
                 </span>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleTestTelegram}
-                  disabled={testingConnection}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/40 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                  id="btn-test-telegram"
-                >
-                  {testingConnection ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-                  ) : (
-                    <Send className="w-4 h-4 text-cyan-400" />
-                  )}
-                  <span>{testingConnection ? 'Testing Connection...' : 'Test Telegram Connection'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveTelegramConfig}
-                  className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 flex items-center gap-1.5"
-                  id="btn-save-telegram"
-                >
-                  <Save className="w-4 h-4 text-cyan-400" />
-                  <span>Save Config</span>
-                </button>
-              </div>
+              {/* Test Button */}
+              <button
+                type="button"
+                onClick={handleTestTelegram}
+                disabled={testingConnection || !botConfigStatus.botConfigured || !botConfigStatus.chatIdConfigured}
+                className="w-full py-2.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/40 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                id="btn-test-telegram"
+                title={!botConfigStatus.botConfigured || !botConfigStatus.chatIdConfigured ? 'Configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables first' : 'Test connection to Telegram API'}
+              >
+                {testingConnection ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                ) : (
+                  <Send className="w-4 h-4 text-cyan-400" />
+                )}
+                <span>{testingConnection ? 'Testing Connection...' : 'Test Telegram Connection'}</span>
+              </button>
 
             </div>
           </div>
