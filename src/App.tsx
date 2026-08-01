@@ -14,6 +14,7 @@ import { VisitorHistory } from './components/VisitorHistory';
 import { ResidentsDirectory } from './components/ResidentsDirectory';
 import { ReportsAnalytics } from './components/ReportsAnalytics';
 import { AdminSettings } from './components/AdminSettings';
+import { TelegramGuardChatModal } from './components/TelegramGuardChatModal';
 
 import { 
   UserRole, 
@@ -45,6 +46,7 @@ export default function App() {
 
   // Sync state
   const [syncTime, setSyncTime] = useState<string>('10:25 AM');
+  const [isTelegramChatOpen, setIsTelegramChatOpen] = useState<boolean>(false);
 
   // Master Data Stores
   const [visitors, setVisitors] = useState<VisitorRecord[]>(INITIAL_VISITORS);
@@ -256,7 +258,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
       gateName: 'Main Gate 01',
       guardName: 'Security Officer Suresh',
-      qrCodeValue: `AEGISPASS-${Date.now()}`,
+      qrCodeValue: `PRAVESHKAVACH-${Date.now()}`,
     };
 
     setCurrentVisitorRecord(newRecord);
@@ -529,7 +531,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-400">
-        <p>AegisPass™ Enterprise AI Visitor Access & Security Management Platform • Powered by Gemini AI Vision</p>
+        <p>PraveshKavach™ Visitor Management System • High Tech Surveillance Systems Pvt. Ltd.</p>
       </footer>
 
     </div>

@@ -218,33 +218,87 @@ export function classifyDocumentType(ocrText: string): DocumentType {
 }
 
 /**
+ * Calculate exact age dynamically based on Date of Birth (DD/MM/YYYY or YYYY) and current system date
+ */
+export function calculateAgeFromDOB(dob: string): string {
+  if (!dob || dob.includes('Not Detected')) return '';
+  const trimmed = dob.trim();
+  const parts = trimmed.split(/[\/\-\.]/);
+
+  let day: number, month: number, year: number;
+
+  if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
+    year = parseInt(parts[0], 10);
+    const currentYear = new Date().getFullYear();
+    const ageYears = currentYear - year;
+    return ageYears > 0 ? `${ageYears} Years` : '';
+  }
+
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    } else {
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+    }
+
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && year > 1900 && year <= new Date().getFullYear()) {
+      const today = new Date();
+      let age = today.getFullYear() - year;
+      const m = today.getMonth() - month;
+      if (m < 0 || (m === 0 && today.getDate() < day)) {
+        age--;
+      }
+      return age >= 0 ? `${age} Years` : '';
+    }
+  }
+
+  return '';
+}
+
+/**
  * Calculate per-field confidence & format validation
  */
 export function validateAndComputeFieldConfidences(
   docData: ExtractedDocData
 ): ExtractedDocData {
+  // Auto-compute dynamic age from DOB if DOB is present
+  if (docData.dob) {
+    const computedAge = calculateAgeFromDOB(docData.dob);
+    if (computedAge) {
+      docData.age = computedAge;
+    }
+  }
+
   const schema = DOCUMENT_SCHEMAS[docData.documentType] || DOCUMENT_SCHEMAS['Aadhaar Card'];
   const fieldConfidences: Record<string, FieldWithConfidence> = {};
   const lowConfidenceFields: string[] = [];
 
   schema.fields.forEach((field) => {
     const val = (docData as any)[field.key] || '';
-    let confidence = 96; // Base high accuracy for extracted fields
+    let confidence = 98; // Base accuracy for extracted text
     let isValid = true;
     let errorMessage: string | undefined = undefined;
 
-    if (!val && field.required) {
-      isValid = false;
-      confidence = 45;
-      errorMessage = `${field.label} is required`;
-    } else if (val && field.validationRegex) {
+    if (!val || val === 'Not Detected – Please Verify Manually') {
+      if (field.required) {
+        isValid = false;
+        confidence = 40;
+        errorMessage = 'Not Detected – Please Verify Manually';
+      } else {
+        confidence = 90; // Optional field empty is acceptable
+      }
+    } else if (field.validationRegex) {
       const match = field.validationRegex.test(val);
       if (!match) {
         isValid = false;
-        confidence = 60;
+        confidence = 55;
         errorMessage = field.validationMessage || `Invalid format for ${field.label}`;
       } else {
-        confidence = 98;
+        confidence = 99;
       }
     }
 
@@ -285,9 +339,9 @@ export function getSampleExtractionDataForDoc(docType: DocumentType): ExtractedD
         age: '36',
         gender: 'Male',
         fatherName: 'RAMESH PRASAD',
-        address: '123, Green Street, Lake View Apartment, Chennai, Tamil Nadu - 600001',
-        pinCode: '600001',
-        state: 'Tamil Nadu',
+        address: '', // Front scan of Aadhaar card has NO address! Address is scanned on the back side.
+        pinCode: '',
+        state: '',
         documentNumber: '5482 1111 2222',
         documentType: 'Aadhaar Card',
         aadhaarVersion: 'v2.0 UIDAI Cryptographic QR',
@@ -302,6 +356,8 @@ export function getSampleExtractionDataForDoc(docType: DocumentType): ExtractedD
         fatherName: 'RAMESHWAR VERMA',
         dob: '22/11/1988',
         gender: 'Male',
+        address: '', // PAN card has no address printed
+        pinCode: '',
         documentNumber: 'ABCDE1234F',
         documentType: 'PAN Card',
         panType: 'Individual',

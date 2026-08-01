@@ -34,9 +34,11 @@ export const Step4ScanBack: React.FC<Step4ScanBackProps> = ({
 
   const handleConfirmBack = () => {
     if (capturedImage) {
+      // Send extracted address if QR code contained address or allow user manual entry on verify screen
+      const addressFromQr = qrScannedData ? qrScannedData : '';
       onBackCaptureCompleted(capturedImage, {
-        address: '123, Green Street, Lake View Apartment, Chennai, Tamil Nadu - 600001',
-        pinCode: '600001',
+        address: addressFromQr,
+        pinCode: addressFromQr ? (addressFromQr.match(/\b\d{6}\b/)?.[0] || '') : '',
       });
     }
   };

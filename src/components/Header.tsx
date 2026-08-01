@@ -10,7 +10,8 @@ import {
   UserCheck, 
   ChevronDown,
   Building,
-  KeyRound
+  KeyRound,
+  Send as TelegramIcon
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   cameraActive: boolean;
   syncTime: string;
   onNavigateHome: () => void;
+  onOpenTelegramChat?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   cameraActive,
   syncTime,
   onNavigateHome,
+  onOpenTelegramChat,
 }) => {
   const roles: { value: UserRole; label: string; icon: string }[] = [
     { value: 'SECURITY_GUARD', label: 'Security Guard', icon: '🛡️' },
@@ -62,14 +65,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-blue-200 bg-clip-text text-transparent">
-                AEGIS<span className="text-cyan-400 font-extrabold">PASS</span>
+                Pravesh<span className="text-cyan-400 font-extrabold">Kavach™</span>
               </span>
               <span className="text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-cyan-400 border border-blue-500/20">
-                AI Platform v2.4
+                Enterprise v4.2
               </span>
             </div>
             <p className="text-xs text-slate-400 font-medium hidden sm:block">
-              Enterprise Access Verification & Management
+              High Tech Surveillance Systems Pvt. Ltd.
             </p>
           </div>
         </div>
@@ -97,6 +100,19 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
           
+          {/* Telegram Resident Live Chat Button */}
+          {onOpenTelegramChat && (
+            <button
+              onClick={onOpenTelegramChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all shadow-sm"
+              title="Open Resident Telegram Live Chat"
+              id="btn-open-telegram-chat"
+            >
+              <TelegramIcon className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline">Telegram Chat</span>
+            </button>
+          )}
+
           {/* Pending Approvals Badge */}
           {pendingApprovalsCount > 0 && (
             <div className="relative flex items-center px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold animate-pulse">

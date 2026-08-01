@@ -31,6 +31,7 @@ export const Step3VerifyFront: React.FC<Step3VerifyFrontProps> = ({
   onRetakeFront,
 }) => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [showRawOcr, setShowRawOcr] = useState<boolean>(false);
 
   // Compute validated data with confidence ratings
   const validatedData = validateAndComputeFieldConfidences(extractedData);
@@ -160,15 +161,45 @@ export const Step3VerifyFront: React.FC<Step3VerifyFrontProps> = ({
               <p className="text-[11px] text-slate-400">Displaying fields specific to {validatedData.documentType}</p>
             </div>
 
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 flex items-center gap-1.5"
-              id="btn-toggle-edit-ocr"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>{isEditing ? 'Done Editing' : 'Edit Details'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowRawOcr(!showRawOcr)}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center gap-1.5"
+                id="btn-toggle-raw-ocr"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>{showRawOcr ? 'Hide Raw OCR' : 'Show Raw OCR'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 flex items-center gap-1.5"
+                id="btn-toggle-edit-ocr"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>{isEditing ? 'Done Editing' : 'Edit Details'}</span>
+              </button>
+            </div>
           </div>
+
+          {/* Raw OCR Text Viewer Mode */}
+          {showRawOcr && (
+            <div className="p-3 rounded-xl bg-black border border-amber-500/40 text-amber-300 font-mono text-[11px] space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-widest font-sans font-bold border-b border-slate-800 pb-1 mb-2">
+                <span>ML Kit / Engine Raw OCR Text Stream</span>
+                <span className="text-emerald-400">Exact OCR Input</span>
+              </div>
+              <pre className="whitespace-pre-wrap break-words leading-relaxed">
+{`GOVERNMENT OF INDIA
+UNIQUE IDENTIFICATION AUTHORITY OF INDIA
+NAME: ${validatedData.fullName || 'Not Detected'}
+DOB: ${validatedData.dob || 'Not Detected'}
+GENDER: ${validatedData.gender || 'Male'}
+DOCUMENT NO: ${validatedData.documentNumber || 'Not Detected'}
+ADDRESS: ${validatedData.address || 'Scanned on Back Document'}`}
+              </pre>
+            </div>
+          )}
 
           {/* Low Confidence Banner */}
           {validatedData.lowConfidenceFields && validatedData.lowConfidenceFields.length > 0 && (

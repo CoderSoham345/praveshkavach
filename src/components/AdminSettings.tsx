@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   Building2, 
@@ -10,7 +10,13 @@ import {
   CheckCircle2, 
   Zap,
   Save,
-  Server
+  Server,
+  Send as TelegramIcon,
+  Activity,
+  Check,
+  X,
+  RefreshCw,
+  Send
 } from 'lucide-react';
 import { SystemBuilding, AuditLogItem } from '../types';
 
@@ -25,9 +31,93 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
   const [livenessThreshold, setLivenessThreshold] = useState<number>(85);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
+  // Telegram Config state
+  const [botTokenInput, setBotTokenInput] = useState<string>('');
+  const [chatIdInput, setChatIdInput] = useState<string>('8612476614');
+  const [botEnabled, setBotEnabled] = useState<boolean>(true);
+  const [lastMessageTime, setLastMessageTime] = useState<string | null>(null);
+  
+  // Test connection state
+  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [connectionStatus, setConnectionStatus] = useState<{
+    tested: boolean;
+    success: boolean;
+    message: string;
+    botName?: string;
+  }>({
+    tested: false,
+    success: false,
+    message: 'Click "Test Telegram Connection" to verify configuration',
+  });
+
+  useEffect(() => {
+    // Fetch initial Telegram settings from server
+    fetch('/api/telegram/config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.config) {
+          setBotEnabled(data.config.botEnabled ?? true);
+          setChatIdInput(data.config.defaultChatId || '8612476614');
+          if (data.config.lastMessageTime) {
+            setLastMessageTime(data.config.lastMessageTime);
+          }
+        }
+      })
+      .catch((err) => console.warn('Failed to load Telegram settings:', err));
+  }, []);
+
+  const handleTestTelegram = async () => {
+    setTestingConnection(true);
+    try {
+      const res = await fetch('/api/telegram/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: botTokenInput.trim() || undefined,
+          defaultChatId: chatIdInput.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      setConnectionStatus({
+        tested: true,
+        success: data.success,
+        message: data.message || (data.success ? 'Telegram Connected Successfully' : 'Telegram Connection Failed'),
+        botName: data.botInfo?.username ? `@${data.botInfo.username}` : undefined,
+      });
+      if (data.success) {
+        setLastMessageTime(new Date().toISOString());
+      }
+    } catch (e: any) {
+      setConnectionStatus({
+        tested: true,
+        success: false,
+        message: `Telegram Connection Failed: ${e.message}`,
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const handleSaveTelegramConfig = async () => {
+    try {
+      await fetch('/api/telegram/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: botTokenInput.trim() || undefined,
+          defaultChatId: chatIdInput.trim(),
+          botEnabled,
+        }),
+      });
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2500);
+    } catch (e) {
+      console.error('Error saving Telegram config:', e);
+    }
+  };
+
   const handleSaveSettings = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    handleSaveTelegramConfig();
   };
 
   return (
@@ -38,10 +128,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Settings className="w-6 h-6 text-cyan-400" />
-            <span>AegisPass Platform Administration</span>
+            <span>PraveshKavach™ Platform Administration</span>
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Configure buildings, security rules, AI OCR parameters, and view system audit trails
+            Configure buildings, security rules, Telegram Bot integration, AI OCR parameters, and view audit trails
           </p>
         </div>
 
@@ -55,11 +145,147 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
         </button>
       </div>
 
-      {/* Grid: Rules & AI Camera (Left) vs Buildings & Audit (Right) */}
+      {/* Grid: Rules & Telegram (Left) vs Buildings & Audit (Right) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         
-        {/* Left Column: Gate Rules & AI Parameters */}
+        {/* Left Column: Telegram Integration & Security Rules */}
         <div className="md:col-span-6 space-y-6">
+          
+          {/* Telegram Bot Settings Section */}
+          <div className="bg-slate-900 p-5 rounded-2xl border border-cyan-500/30 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <TelegramIcon className="w-4 h-4 text-cyan-400" />
+                <span>Telegram Bot Integration</span>
+              </h3>
+              
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1 ${
+                botEnabled 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+              }`}>
+                <Activity className="w-3 h-3" />
+                <span>{botEnabled ? 'Bot Active' : 'Bot Disabled'}</span>
+              </span>
+            </div>
+
+            {/* Status Banner */}
+            <div className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+              connectionStatus.tested
+                ? connectionStatus.success
+                  ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                  : 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+                : 'bg-slate-950 border-slate-800 text-slate-300'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                {connectionStatus.tested ? (
+                  connectionStatus.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <X className="w-5 h-5 text-rose-400 shrink-0" />
+                  )
+                ) : (
+                  <TelegramIcon className="w-5 h-5 text-cyan-400 shrink-0" />
+                )}
+                <div>
+                  <p className="font-extrabold text-white">
+                    {connectionStatus.tested
+                      ? connectionStatus.success
+                        ? '✅ Telegram Connected Successfully'
+                        : '❌ Telegram Connection Failed'
+                      : 'Telegram Bot Authorization Service'}
+                  </p>
+                  <p className="text-[11px] opacity-80 mt-0.5">{connectionStatus.message}</p>
+                </div>
+              </div>
+
+              {connectionStatus.botName && (
+                <span className="px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[10px] border border-cyan-500/30">
+                  {connectionStatus.botName}
+                </span>
+              )}
+            </div>
+
+            {/* Inputs & Controls */}
+            <div className="space-y-3 text-xs">
+              
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">
+                  Telegram Bot Token <span className="text-slate-500 font-normal">(Loaded securely from Environment)</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="8612476614:AAErLL7CNMivZYmYpCBMEjzJQfhd2KQO65U"
+                  value={botTokenInput}
+                  onChange={(e) => setBotTokenInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">
+                  Default Telegram Chat ID / Resident Gateway ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="8612476614"
+                  value={chatIdInput}
+                  onChange={(e) => setChatIdInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <div>
+                  <p className="font-bold text-white">Enable Bot Notifications & Interactive Callbacks</p>
+                  <p className="text-[11px] text-slate-400">Send approval requests to resident Telegram accounts instantly</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={botEnabled}
+                  onChange={(e) => setBotEnabled(e.target.checked)}
+                  className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                />
+              </div>
+
+              {/* Info Stats */}
+              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
+                <span>Last Telegram Notification Time:</span>
+                <span className="font-mono text-cyan-400 font-bold">
+                  {lastMessageTime ? new Date(lastMessageTime).toLocaleTimeString() : 'Active System Session'}
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={testingConnection}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/40 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  id="btn-test-telegram"
+                >
+                  {testingConnection ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                  ) : (
+                    <Send className="w-4 h-4 text-cyan-400" />
+                  )}
+                  <span>{testingConnection ? 'Testing Connection...' : 'Test Telegram Connection'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveTelegramConfig}
+                  className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 flex items-center gap-1.5"
+                  id="btn-save-telegram"
+                >
+                  <Save className="w-4 h-4 text-cyan-400" />
+                  <span>Save Config</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
           
           <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4 shadow-xl">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-slate-800 pb-2">
@@ -152,7 +378,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
               <span>Security Audit Logs</span>
             </h3>
 
-            <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar text-xs">
+            <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar text-xs">
               {auditLogs.map((log) => (
                 <div key={log.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
                   <div className="flex justify-between font-mono text-[10px] text-slate-400">
@@ -173,3 +399,4 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
     </div>
   );
 };
+

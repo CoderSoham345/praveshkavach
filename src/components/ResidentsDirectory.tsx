@@ -8,7 +8,11 @@ import {
   CheckCircle2, 
   Zap, 
   UserPlus, 
-  Home
+  Home,
+  FileCheck,
+  X,
+  ShieldCheck,
+  Award
 } from 'lucide-react';
 import { Resident } from '../types';
 
@@ -23,6 +27,7 @@ export const ResidentsDirectory: React.FC<ResidentsDirectoryProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('ALL');
+  const [viewingResidentDoc, setViewingResidentDoc] = useState<Resident | null>(null);
 
   const filtered = residents.filter((r) => {
     const matchesSearch =
@@ -48,7 +53,7 @@ export const ResidentsDirectory: React.FC<ResidentsDirectoryProps> = ({
             <span>Residents & Facility Directory</span>
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Search residents across Tower A, Tower B, and Corporate Suites
+            Search registered residents, verify unit tenancy certificates, and configure notification hosts
           </p>
         </div>
       </div>
@@ -121,16 +126,16 @@ export const ResidentsDirectory: React.FC<ResidentsDirectoryProps> = ({
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-1">
-              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${
-                res.autoApproveGuests 
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-slate-800 text-slate-400'
-              }`}>
-                <Zap className="w-3 h-3" />
-                <span>{res.autoApproveGuests ? 'Auto-Approve Delivery' : 'Standard Security'}</span>
-              </span>
+            {/* Actions: View Resident Proof & Select Host */}
+            <div className="flex items-center justify-between pt-1 gap-2">
+              <button
+                onClick={() => setViewingResidentDoc(res)}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition-colors"
+                id={`btn-view-res-doc-${res.id}`}
+              >
+                <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span>View Resident Doc</span>
+              </button>
 
               {onSelectResidentToInvite && (
                 <button
@@ -147,6 +152,71 @@ export const ResidentsDirectory: React.FC<ResidentsDirectoryProps> = ({
         ))}
       </div>
 
+      {/* Resident Document Modal */}
+      {viewingResidentDoc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl relative">
+            
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h3 className="font-bold text-white text-base">RESIDENT PROOF OF OCCUPANCY</h3>
+                  <p className="text-xs text-slate-400">Official Resident Registration & Tenancy Records</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingResidentDoc(null)}
+                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Resident Card Details */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center font-bold text-cyan-300 text-lg">
+                  {viewingResidentDoc.name[0]}
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-base">{viewingResidentDoc.name}</h4>
+                  <p className="text-xs text-cyan-400 font-semibold">{viewingResidentDoc.flatNumber}, {viewingResidentDoc.building}</p>
+                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">Reg ID: RES-2026-{viewingResidentDoc.id.replace('res-', '')}</p>
+                </div>
+              </div>
+
+              {/* Simulated Official Resident Certificate Image */}
+              <div className="p-4 rounded-lg bg-gradient-to-br from-slate-900 to-blue-950 border border-cyan-500/30 text-slate-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between border-b border-cyan-500/20 pb-2">
+                  <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-amber-400" />
+                    PraveshKavach™ Tenancy & Access Token
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                    VERIFIED
+                  </span>
+                </div>
+                <p><strong>Primary Resident:</strong> {viewingResidentDoc.name}</p>
+                <p><strong>Allocated Flat / Office:</strong> {viewingResidentDoc.flatNumber}, {viewingResidentDoc.building}</p>
+                <p><strong>Contact Phone:</strong> {viewingResidentDoc.phone}</p>
+                <p><strong>Verification Status:</strong> Government ID Verified (UIDAI / RTO)</p>
+                <p><strong>Gate Notification Bot:</strong> Registered via Telegram (@PraveshKavachGateBot)</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setViewingResidentDoc(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 uppercase"
+            >
+              Close Resident Profile
+            </button>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+

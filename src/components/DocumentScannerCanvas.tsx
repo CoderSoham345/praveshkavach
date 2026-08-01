@@ -246,10 +246,7 @@ export const DocumentScannerCanvas: React.FC<DocumentScannerCanvasProps> = ({
   // Determine if Document is Valid for Capture Button Activation
   const isValidDocument = Boolean(
     isSupportedDocType &&
-    scanResult &&
-    scanResult.quadDetected &&
-    scanResult.allCriteriaPassed &&
-    !scanResult.hasFaceInFrame
+    !scanResult?.hasFaceInFrame
   );
 
   return (

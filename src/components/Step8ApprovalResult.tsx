@@ -38,7 +38,7 @@ export const Step8ApprovalResult: React.FC<Step8ApprovalResultProps> = ({
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `AegisPass - Visitor Pass ${visitor.passNumber}`,
+        title: `PraveshKavach™ - Visitor Pass ${visitor.passNumber}`,
         text: `Visitor Pass approved for ${visitor.visitorName} visiting ${visitor.residentName}`,
         url: window.location.href,
       }).catch(() => {});
@@ -98,7 +98,7 @@ export const Step8ApprovalResult: React.FC<Step8ApprovalResultProps> = ({
                 </div>
               </div>
               <div>
-                <h3 className="font-extrabold text-base text-white">AEGISPASS DIGITAL GATE PASS</h3>
+                <h3 className="font-extrabold text-base text-white">PRAVESHKAVACH™ DIGITAL GATE PASS</h3>
                 <p className="text-xs text-slate-400">Issued by Main Gate Security Guard</p>
               </div>
             </div>

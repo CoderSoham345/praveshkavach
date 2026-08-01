@@ -99,7 +99,7 @@ export const INITIAL_VISITORS: VisitorRecord[] = [
     checkInAt: new Date(Date.now() - 3000000).toISOString(),
     gateName: 'Main Gate 01',
     guardName: 'Security Officer Suresh',
-    qrCodeValue: 'AEGISPASS-VIS-1001',
+    qrCodeValue: 'PRAVESHKAVACH-VIS-1001',
   },
   {
     id: 'vis-1002',
@@ -140,7 +140,7 @@ export const INITIAL_VISITORS: VisitorRecord[] = [
     createdAt: new Date(Date.now() - 1800000).toISOString(),
     gateName: 'Main Gate 01',
     guardName: 'Security Officer Suresh',
-    qrCodeValue: 'AEGISPASS-VIS-1002',
+    qrCodeValue: 'PRAVESHKAVACH-VIS-1002',
   },
 ];
 
@@ -238,8 +238,8 @@ export const MOCK_SAMPLE_IDS = [
       dob: '15/08/1990',
       gender: 'Male',
       fatherName: 'RAMESH PRASAD',
-      address: '123 Green Street, Lake View Apartment, Chennai, Tamil Nadu - 600001',
-      pinCode: '600001',
+      address: '', // Front scan of Aadhaar card has NO address printed on it!
+      pinCode: '',
       documentNumber: '5482 1111 2222',
       documentType: 'Aadhaar Card' as const,
       confidenceScore: 98,
@@ -255,9 +255,11 @@ export const MOCK_SAMPLE_IDS = [
       dob: '22/11/1988',
       gender: 'Male',
       fatherName: 'RAMESH VERMA',
+      address: '', // Front scan of PAN card has NO address!
+      pinCode: '',
       documentNumber: 'ABCDE1234F',
       documentType: 'PAN Card' as const,
-      confidenceScore: 95,
+      confidenceScore: 97,
       lowConfidenceFields: [],
     }
   }

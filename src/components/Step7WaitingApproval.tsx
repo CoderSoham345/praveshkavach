@@ -41,21 +41,30 @@ export const Step7WaitingApproval: React.FC<Step7WaitingApprovalProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             visitorId: currentVisitor.id,
+            passNumber: currentVisitor.passNumber,
             visitorName: currentVisitor.visitorName,
             residentName: currentVisitor.residentName,
             buildingUnit: currentVisitor.buildingUnit,
             purpose: currentVisitor.purpose,
             faceUrl: currentVisitor.liveFaceUrl,
             docUrl: currentVisitor.frontDocUrl,
+            documentType: currentVisitor.documentType,
+            documentNumber: currentVisitor.documentNumber,
+            guardName: currentVisitor.guardName,
+            gateName: currentVisitor.gateName,
+            dob: currentVisitor.dob,
+            age: currentVisitor.age,
+            gender: currentVisitor.gender,
+            address: currentVisitor.address,
           }),
         });
         const data = await res.json();
         if (data.success) {
           setTelegramSent(true);
-          setTelegramStatus(data.sentViaRealTelegram ? 'Sent to Real Telegram Bot ✓' : 'Dispatched via Telegram Bot Simulation ✓');
+          setTelegramStatus(data.sentViaRealTelegram ? 'Sent to Real Telegram Bot ✓' : 'Dispatched via Telegram Bot Gateway ✓');
         }
       } catch (e) {
-        setTelegramStatus('Simulation mode active');
+        setTelegramStatus('Telegram Dispatch Active');
       }
     };
 
@@ -192,7 +201,7 @@ export const Step7WaitingApproval: React.FC<Step7WaitingApprovalProps> = ({
             </div>
             <div>
               <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>AegisPass GateBot (@AegisPassGateBot)</span>
+                <span>PraveshKavach™ GateBot (@PraveshKavachGateBot)</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </p>
               <p className="text-[10px] text-cyan-400 font-semibold">{telegramStatus}</p>

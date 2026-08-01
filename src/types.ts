@@ -136,11 +136,17 @@ export interface VisitorRecord {
   rejectionReason?: string;
   createdAt: string;
   approvedAt?: string;
+  approvedBy?: string;
+  rejectedAt?: string;
   checkInAt?: string;
   checkOutAt?: string;
   gateName: string;
   guardName: string;
   qrCodeValue: string;
+  dob?: string;
+  age?: string;
+  gender?: string;
+  address?: string;
 }
 
 export interface SystemBuilding {
