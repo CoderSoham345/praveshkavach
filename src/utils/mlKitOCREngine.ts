@@ -399,18 +399,16 @@ export class MLKitOCREngine {
    * Extract Aadhaar front side data
    */
   static extractAadhaarFront(rawText: string): AadhaarFrontData {
-    const { number } = extractAadhaarNumber(rawText);
-    const { dob } = extractDOB(rawText);
-    const { gender } = extractGender(rawText);
-    const { name } = extractName(rawText);
-    
-    const { aadhaarNumber } = extractAadhaarNumber(rawText);
+    const aadhaarResult = extractAadhaarNumber(rawText);
+    const dobResult = extractDOB(rawText);
+    const genderResult = extractGender(rawText);
+    const nameResult = extractName(rawText);
     
     return {
-      fullName: name.name,
-      aadhaarNumber: number,
-      dob: dob,
-      gender: gender.gender,
+      fullName: nameResult.name,
+      aadhaarNumber: aadhaarResult.number,
+      dob: dobResult.dob,
+      gender: genderResult.gender,
       confidence: 75,
     };
   }
@@ -419,12 +417,12 @@ export class MLKitOCREngine {
    * Extract Aadhaar back side data
    */
   static extractAadhaarBack(rawText: string): AadhaarBackData {
-    const { address } = extractAddress(rawText);
-    const { pinCode } = extractPinCode(rawText);
+    const addressResult = extractAddress(rawText);
+    const pinCodeResult = extractPinCode(rawText);
     
     return {
-      address: address.address,
-      pinCode: pinCode.pinCode,
+      address: addressResult.address,
+      pinCode: pinCodeResult.pinCode,
       state: '', // Extract from address if possible
       confidence: 70,
     };

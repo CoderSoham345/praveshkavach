@@ -26,12 +26,15 @@ export const INITIAL_BUILDINGS: SystemBuilding[] = [];
 export const INITIAL_AUDIT_LOGS: AuditLogItem[] = [];
 
 export const INITIAL_ANALYTICS: AnalyticsStats = {
-  totalVisitors: 0,
-  totalApproved: 0,
-  totalRejected: 0,
-  checkedInToday: 0,
-  averageProcessingTime: 0,
-  verificationSuccessRate: 0,
+  totalVisitorsToday: 0,
+  currentlyInside: 0,
+  pendingApprovals: 0,
+  rejectedVisitorsToday: 0,
+  avgVerificationTimeSec: 0,
+  peakHour: '10:00 AM',
+  weeklyTrends: [],
+  hourlyTraffic: [],
+  purposeBreakdown: [],
 };
 
 /**

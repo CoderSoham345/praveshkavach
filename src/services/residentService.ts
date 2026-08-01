@@ -79,10 +79,10 @@ class ResidentServiceImpl {
       };
 
       // Save to Firebase
-      const residentId = await firebaseService.createResident(resident as any);
+      const success = await firebaseService.saveResident(resident as any);
 
-      if (residentId) {
-        return { success: true, residentId };
+      if (success) {
+        return { success: true, residentId: (resident as any).residentId || 'resident-' + Date.now() };
       } else {
         return { success: false, error: 'Failed to save resident' };
       }

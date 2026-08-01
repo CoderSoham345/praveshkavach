@@ -33,7 +33,7 @@ export function useVisitorStatusListener(visitorId: string | null) {
         if (unsubscribe) unsubscribe();
       };
     } catch (err) {
-      setError(\`\${err}\`);
+      setError(`${err}`);
       setLoading(false);
     }
   }, [visitorId]);
@@ -66,7 +66,7 @@ export function useApprovalRequestsListener(residentId: string | null) {
         if (unsubscribe) unsubscribe();
       };
     } catch (err) {
-      setError(\`\${err}\`);
+      setError(`${err}`);
       setLoading(false);
     }
   }, [residentId]);
