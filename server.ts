@@ -759,6 +759,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/ocr', async (req, res) => {
   try {
     const { imageBase64, docType } = req.body;
+    console.log('[v0] OCR endpoint called. Gemini API configured:', !!getGeminiClient());
 
     if (!imageBase64) {
       return res.status(400).json({ error: 'imageBase64 field is required' });
@@ -885,6 +886,7 @@ Extract structured fields:
 
     // Fallback if GEMINI_API_KEY is not configured or quota limit is reached
     // Return empty fields ONLY - NO hallucinated data
+    console.log('[v0] CRITICAL: Using fallback OCR (Gemini not available). Returning empty fields only.');
     return res.json({
       success: true,
       extractedData: {
