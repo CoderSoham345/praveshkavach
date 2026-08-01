@@ -757,15 +757,20 @@ app.get('/api/health', (req, res) => {
 
 // AI OCR Endpoint using Gemini with Strict Non-Hallucination Constraints and Graceful Quota Fallback
 app.post('/api/ocr', async (req, res) => {
+  console.log('[v0] ===== OCR REQUEST START =====');
   try {
     const { imageBase64, docType } = req.body;
-    console.log('[v0] OCR endpoint called. Gemini API configured:', !!getGeminiClient());
+    console.log('[v0] Request received. Gemini configured:', !!getGeminiClient());
+    console.log('[v0] Image size:', imageBase64 ? imageBase64.length : 'MISSING');
+    console.log('[v0] Document type:', docType);
 
     if (!imageBase64) {
-      return res.status(400).json({ error: 'imageBase64 field is required' });
+      console.log('[v0] ERROR: imageBase64 is missing');
+      return res.status(400).json({ success: false, error: 'imageBase64 field is required' });
     }
 
     const ai = getGeminiClient();
+    console.log('[v0] Gemini client obtained:', !!ai);
 
     if (ai) {
       // Clean base64 string
@@ -849,7 +854,9 @@ Extract structured fields:
       }
 
       if (responseText) {
+        console.log('[v0] Gemini response received, parsing JSON...');
         const parsed = JSON.parse(responseText || '{}');
+        console.log('[v0] Parsed fields:', Object.keys(parsed));
         
         // CRITICAL: Never add default/hallucinated values
         // Only use what was actually detected by Gemini
@@ -869,7 +876,8 @@ Extract structured fields:
           lowConfidenceFields: parsed.lowConfidenceFields || [],
         };
         
-        return res.json({
+        console.log('[v0] Sending OCR success response');
+        const response = {
           success: true,
           extractedData,
           quality: {
@@ -880,14 +888,16 @@ Extract structured fields:
           },
           source: 'GEMINI_AI_VISION',
           rawResponse: parsed, // Include raw data for debugging
-        });
+        };
+        console.log('[v0] ===== OCR REQUEST COMPLETE =====');
+        return res.json(response);
       }
     }
 
     // Fallback if GEMINI_API_KEY is not configured or quota limit is reached
     // Return empty fields ONLY - NO hallucinated data
-    console.log('[v0] CRITICAL: Using fallback OCR (Gemini not available). Returning empty fields only.');
-    return res.json({
+    console.log('[v0] FALLBACK: Gemini not available. Returning empty fields.');
+    const fallbackResponse = {
       success: true,
       extractedData: {
         fullName: '',
@@ -912,10 +922,14 @@ Extract structured fields:
         edgesDetected: true,
       },
       source: 'LOCAL_ML_KIT_PIPELINE',
-    });
+    };
+    console.log('[v0] ===== OCR REQUEST COMPLETE (FALLBACK) =====');
+    return res.json(fallbackResponse);
   } catch (err: any) {
-    console.error('OCR API Error:', err);
-    res.status(500).json({ error: 'OCR Processing failed', message: err.message });
+    console.error('[v0] OCR API Error:', err);
+    console.error('[v0] Error stack:', err.stack);
+    console.log('[v0] ===== OCR REQUEST FAILED =====');
+    return res.status(500).json({ success: false, error: 'OCR Processing failed', message: err.message });
   }
 });
 
@@ -1152,6 +1166,28 @@ app.get('/api/analytics', (req, res) => {
       verificationSuccessRate: total > 0 ? (100 - (rejected / total) * 100) : 0,
     },
     auditLogs: auditLogsStore.slice(0, 20),
+  });
+});
+
+// Global error handler - MUST be before Vite middleware
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('[v0] Global error handler caught:', err.message);
+  console.error('[v0] Stack:', err.stack);
+  res.status(500).json({ 
+    success: false, 
+    error: 'Internal server error',
+    message: err.message 
+  });
+});
+
+// 404 handler - for any undefined routes
+app.use((req: any, res: any) => {
+  console.warn('[v0] 404 - Route not found:', req.method, req.path);
+  res.status(404).json({ 
+    success: false, 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method 
   });
 });
 
