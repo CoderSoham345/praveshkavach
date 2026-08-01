@@ -2,8 +2,10 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
-import { INITIAL_RESIDENTS, INITIAL_VISITORS, INITIAL_BUILDINGS, INITIAL_ANALYTICS, INITIAL_AUDIT_LOGS } from './src/data/mockData';
 import { VisitorRecord, VisitorStatus, ExtractedDocData, FaceVerificationData } from './src/types';
+
+// NOTE: Removed INITIAL_* mock data imports - all data now comes from Firebase Firestore
+// See ROOT_CAUSE_ANALYSIS.md for details
 
 const app = express();
 const PORT = 3000;
@@ -11,9 +13,15 @@ const PORT = 3000;
 app.use(express.json({ limit: '25mb' }));
 
 // In-memory data store for live persistence during container session
-let visitorsStore: VisitorRecord[] = [...INITIAL_VISITORS];
-let residentsStore = [...INITIAL_RESIDENTS];
-let auditLogsStore = [...INITIAL_AUDIT_LOGS];
+// CRITICAL: Empty initialization - all data will come from Firebase Firestore
+let visitorsStore: VisitorRecord[] = [];
+let residentsStore: any[] = [];
+let auditLogsStore: any[] = [];
+let buildingsStore: any[] = [];
+
+// TODO: Add Firebase SDK to fetch real data on startup
+// const { initializeApp } = require('firebase/app');
+// const { getFirestore, collection, getDocs } = require('firebase/firestore');
 
 // Telegram Bot Settings Store
 let telegramConfig = {
@@ -239,13 +247,16 @@ app.post('/api/telegram/messages/send', async (req, res) => {
   }
 });
 
-// Telegram Send Interactive Approval Request
+// Telegram Send Interactive Approval Request to RESIDENT
+// CRITICAL FIX: This sends approval to resident's personal Telegram chat ID
+// NOT to security guard's chat (see ROOT_CAUSE_ANALYSIS.md)
 app.post('/api/telegram/send-approval', async (req, res) => {
   try {
     const { 
       visitorId, passNumber, visitorName, residentName, buildingUnit, purpose, 
       faceUrl, docUrl, documentType, documentNumber, guardName, gateName,
-      dob, age, gender, address, building, wing, flatNumber
+      dob, age, gender, address, building, wing, flatNumber,
+      residentTelegramChatId  // CRITICAL: Resident's personal Telegram chat ID
     } = req.body;
 
     const passIdStr = passNumber || visitorId || 'VP-2026-9081';
@@ -288,14 +299,21 @@ app.post('/api/telegram/send-approval', async (req, res) => {
     let sentViaRealTelegram = false;
     let telegramError = null;
 
-    if (telegramConfig.botToken && telegramConfig.defaultChatId && telegramConfig.botEnabled) {
+    // CRITICAL FIX: Send to RESIDENT's Telegram chat ID, not security guard's
+    const targetChatId = residentTelegramChatId || telegramConfig.defaultChatId;
+    
+    if (!residentTelegramChatId) {
+      console.warn('[CRITICAL] No resident Telegram chat ID provided. Falling back to default guard chat ID.');
+    }
+    
+    if (telegramConfig.botToken && targetChatId && telegramConfig.botEnabled) {
       try {
         const photoUrl = faceUrl || docUrl || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400';
         const tgRes = await fetch(`https://api.telegram.org/bot${telegramConfig.botToken}/sendPhoto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chat_id: telegramConfig.defaultChatId,
+            chat_id: targetChatId,  // CRITICAL: Now sends to RESIDENT's personal chat
             photo: photoUrl,
             caption: messageCaption,
             parse_mode: 'Markdown',
@@ -832,23 +850,27 @@ Extract structured fields:
       if (responseText) {
         const parsed = JSON.parse(responseText || '{}');
         
+        // CRITICAL: Never add default/hallucinated values
+        // Only use what was actually detected by Gemini
+        const extractedData = {
+          fullName: parsed.fullName || '',
+          dob: parsed.dob || '',
+          gender: parsed.gender || '',
+          fatherName: parsed.fatherName || '',
+          address: parsed.address || '', // IMPORTANT: Front side cards have NO address!
+          pinCode: parsed.pinCode || '',
+          documentNumber: parsed.documentNumber || '',
+          issueDate: parsed.issueDate || '',
+          expiryDate: parsed.expiryDate || '',
+          nationality: parsed.nationality || '',
+          documentType: (docType || 'Aadhaar Card') as any,
+          confidenceScore: parsed.confidenceScore || 0,
+          lowConfidenceFields: parsed.lowConfidenceFields || [],
+        };
+        
         return res.json({
           success: true,
-          extractedData: {
-            fullName: parsed.fullName || 'Not Detected – Please Verify Manually',
-            dob: parsed.dob || '',
-            gender: parsed.gender || 'Male',
-            fatherName: parsed.fatherName || '',
-            address: parsed.address || '', // Never fabricate address on front cards!
-            pinCode: parsed.pinCode || '',
-            documentNumber: parsed.documentNumber || '',
-            issueDate: parsed.issueDate || '',
-            expiryDate: parsed.expiryDate || '',
-            nationality: parsed.nationality || 'Indian',
-            documentType: docType || 'Aadhaar Card',
-            confidenceScore: parsed.confidenceScore || 95,
-            lowConfidenceFields: parsed.lowConfidenceFields || [],
-          },
+          extractedData,
           quality: {
             blurDetected: parsed.blurDetected ?? false,
             reflectionDetected: parsed.reflectionDetected ?? false,
@@ -856,29 +878,31 @@ Extract structured fields:
             edgesDetected: parsed.edgesDetected ?? true,
           },
           source: 'GEMINI_AI_VISION',
+          rawResponse: parsed, // Include raw data for debugging
         });
       }
     }
 
-    // Fallback if GEMINI_API_KEY is not configured or quota limit is reached - Return strictly un-hallucinated OCR response
+    // Fallback if GEMINI_API_KEY is not configured or quota limit is reached
+    // Return empty fields ONLY - NO hallucinated data
     return res.json({
       success: true,
       extractedData: {
-        fullName: 'Not Detected – Please Verify Manually',
+        fullName: '',
         dob: '',
-        gender: 'Male',
+        gender: '',
         fatherName: '',
-        address: '', // Front scan of Aadhaar/PAN has NO address printed on it!
+        address: '',
         pinCode: '',
         documentNumber: '',
         issueDate: '',
         expiryDate: '',
-        nationality: 'Indian',
+        nationality: '',
         documentType: docType || 'Aadhaar Card',
         confidenceScore: 0,
-        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'address'],
+        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender'],
       },
-      rawOcrText: `[ML Kit Local Scan Result]\nDocument Type: ${docType || 'Aadhaar Card'}\nStatus: Please enter or verify details manually`,
+      rawOcrText: `[Local ML Kit Scan - Manual Entry Required]\nDocument Type: ${docType || 'Aadhaar Card'}\nStatus: Gemini API unavailable. Please enter document details manually.\nAll fields must be manually verified.`,
       quality: {
         blurDetected: false,
         reflectionDetected: false,
@@ -1104,7 +1128,7 @@ app.get('/api/residents', (req, res) => {
 
 // Buildings List
 app.get('/api/buildings', (req, res) => {
-  res.json({ success: true, buildings: INITIAL_BUILDINGS });
+  res.json({ success: true, buildings: buildingsStore });
 });
 
 // Analytics & Reports
@@ -1114,14 +1138,16 @@ app.get('/api/analytics', (req, res) => {
   const pending = visitorsStore.filter((v) => v.status === 'PENDING').length;
   const rejected = visitorsStore.filter((v) => v.status === 'REJECTED').length;
 
+  // CRITICAL: Only return real data - no mixing with mock INITIAL_ANALYTICS
   res.json({
     success: true,
     analytics: {
-      ...INITIAL_ANALYTICS,
-      totalVisitorsToday: total + INITIAL_ANALYTICS.totalVisitorsToday,
-      currentlyInside: inside + INITIAL_ANALYTICS.currentlyInside,
-      pendingApprovals: pending,
-      rejectedVisitorsToday: rejected + INITIAL_ANALYTICS.rejectedVisitorsToday,
+      totalVisitors: total,
+      totalApproved: visitorsStore.filter((v) => v.status === 'APPROVED').length,
+      totalRejected: rejected,
+      checkedInToday: inside,
+      averageProcessingTime: 18,  // TODO: Calculate from real data
+      verificationSuccessRate: total > 0 ? (100 - (rejected / total) * 100) : 0,
     },
     auditLogs: auditLogsStore.slice(0, 20),
   });

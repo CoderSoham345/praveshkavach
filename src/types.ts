@@ -6,6 +6,25 @@ export type UserRole =
   | 'VISITOR'
   | 'FACILITY_MANAGER';
 
+/**
+ * Resident Profile - Stored in Firebase Firestore
+ * CRITICAL: Telegram approvals sent to resident's telegramChatId, NOT security guard
+ */
+export interface Resident {
+  residentId: string;
+  name: string;
+  building: string;
+  wing: string;
+  flat: string;
+  mobile: string;
+  email: string;
+  telegramChatId: string; // CRITICAL: Approval messages sent here
+  telegramUsername?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DocumentType = 
   | 'Aadhaar Card'
   | 'PAN Card'

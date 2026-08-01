@@ -29,13 +29,8 @@ import {
   AnalyticsStats 
 } from './types';
 
-import { 
-  INITIAL_RESIDENTS, 
-  INITIAL_VISITORS, 
-  INITIAL_BUILDINGS, 
-  INITIAL_ANALYTICS, 
-  INITIAL_AUDIT_LOGS 
-} from './data/mockData';
+// NOTE: Removed INITIAL_* mock data imports - all data now comes from Firebase Firestore
+// See ROOT_CAUSE_ANALYSIS.md for details on removing hallucinated data
 
 export default function App() {
   // App-level state
@@ -48,12 +43,19 @@ export default function App() {
   const [syncTime, setSyncTime] = useState<string>('10:25 AM');
   const [isTelegramChatOpen, setIsTelegramChatOpen] = useState<boolean>(false);
 
-  // Master Data Stores
-  const [visitors, setVisitors] = useState<VisitorRecord[]>(INITIAL_VISITORS);
-  const [residents, setResidents] = useState<Resident[]>(INITIAL_RESIDENTS);
-  const [buildings, setBuildings] = useState<SystemBuilding[]>(INITIAL_BUILDINGS);
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(INITIAL_AUDIT_LOGS);
-  const [analytics, setAnalytics] = useState<AnalyticsStats>(INITIAL_ANALYTICS);
+  // Master Data Stores - EMPTY by default, will be populated from Firebase Firestore
+  const [visitors, setVisitors] = useState<VisitorRecord[]>([]);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [buildings, setBuildings] = useState<SystemBuilding[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsStats>({
+    totalVisitors: 0,
+    totalApproved: 0,
+    totalRejected: 0,
+    checkedInToday: 0,
+    averageProcessingTime: 0,
+    verificationSuccessRate: 0,
+  });
 
   // Workflow temporary states
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Aadhaar Card');
@@ -61,16 +63,14 @@ export default function App() {
   const [backDocImage, setBackDocImage] = useState<string>('');
   const [liveFaceImage, setLiveFaceImage] = useState<string>('');
 
+  // Extracted data starts empty - populated only by real OCR
   const [extractedData, setExtractedData] = useState<ExtractedDocData>({
-    fullName: 'RAMESH KUMAR',
-    dob: '15/08/1990',
-    gender: 'Male',
-    fatherName: 'RAMESH PRASAD',
-    address: '123, Green Street, Lake View Apartment, Chennai, TN - 600001',
-    pinCode: '600001',
-    documentNumber: '5482 1111 2222',
+    fullName: '',
+    dob: '',
+    gender: '',
+    documentNumber: '',
     documentType: 'Aadhaar Card',
-    confidenceScore: 98,
+    confidenceScore: 0,
     lowConfidenceFields: [],
   });
 
