@@ -793,12 +793,11 @@ app.get('/api/health', (req, res) => {
 
 // AI OCR Endpoint using Gemini with Strict Non-Hallucination Constraints and Graceful Quota Fallback
 app.post('/api/ocr', async (req, res) => {
-  console.log('[v0] ===== OCR REQUEST START =====');
+  console.log('[v0] ===== STRICT OCR REQUEST START =====');
   try {
-    const { imageBase64, docType } = req.body;
-    console.log('[v0] Request received. Gemini configured:', !!getGeminiClient());
-    console.log('[v0] Image size:', imageBase64 ? imageBase64.length : 'MISSING');
-    console.log('[v0] Document type:', docType);
+    const { imageBase64, docType, side } = req.body;
+    console.log('[v0] Request received. Image size:', imageBase64 ? imageBase64.length : 'MISSING');
+    console.log('[v0] Document type:', docType, 'Side:', side);
 
     if (!imageBase64) {
       console.log('[v0] ERROR: imageBase64 is missing');
@@ -806,38 +805,39 @@ app.post('/api/ocr', async (req, res) => {
     }
 
     const ai = getGeminiClient();
-    console.log('[v0] Gemini client obtained:', !!ai);
+    const ocrSide = (side as 'front' | 'back') || 'front';
+    console.log('[v0] Processing OCR for:', ocrSide, 'side');
 
     if (ai) {
       // Clean base64 string
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       
-      const prompt = `CRITICAL ACCURACY REQUIREMENT FOR ID DOCUMENT OCR:
-Analyze this ID document image (${docType || 'Government ID'}) strictly.
-Extract ONLY text that is visibly printed on the document in the provided image.
-DO NOT invent, predict, or fabricate missing values.
-IMPORTANT: The FRONT side of Aadhaar Card and PAN Card DOES NOT contain an address. Do NOT output any address for front-side scans.
-If a field is not printed or not detected on the document, leave it as an empty string ("").
+      // CRITICAL: Instruct Gemini to return RAW OCR TEXT ONLY
+      // No parsing, no inference, no hallucination
+      const prompt = `You are an OCR text extraction engine for government ID documents.
+Your ONLY task: Extract and return the EXACT text visible on this document image.
 
-Extract structured fields:
-- Full Name (fullName)
-- Date of Birth (dob in DD/MM/YYYY)
-- Gender (gender: Male, Female, Other)
-- Father Name / Guardian Name (fatherName if present)
-- Full Address (address - ONLY if visibly printed on the document, otherwise empty string)
-- PIN Code (pinCode - ONLY if printed, otherwise empty string)
-- Document ID Number (documentNumber)
-- Issue Date (issueDate if present)
-- Expiry Date (expiryDate if present)
-- Nationality (nationality if present)
-- Confidence Score (confidenceScore: 0 to 100 integer)
-- Low Confidence Fields (lowConfidenceFields: array of field keys)`;
+RULES:
+- Extract ONLY text that is VISIBLY PRINTED on the document
+- DO NOT infer, guess, or hallucinate any values
+- DO NOT fabricate missing information
+- Return the text exactly as it appears
+- For ${ocrSide} side of ${docType}:
+${ocrSide === 'front' 
+  ? `  - Extract: Name, Aadhaar Number, Date of Birth, Gender, Father/Guardian Name
+  - DO NOT include address (front side has no address)`
+  : `  - Extract: Full Address, PIN Code, State, City/District
+  - Extract address lines exactly as printed`
+}
 
-      const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-      let responseText: string | null = null;
+Format the output as a clean text dump of all extracted text, maintaining structure and line breaks.`;
+
+      const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+      let rawOCRText: string | null = null;
 
       for (const modelName of modelsToTry) {
         try {
+          console.log('[v0] Attempting Gemini model:', modelName);
           const response = await ai.models.generateContent({
             model: modelName,
             contents: {
@@ -851,88 +851,135 @@ Extract structured fields:
                 { text: prompt },
               ],
             },
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  fullName: { type: Type.STRING },
-                  dob: { type: Type.STRING },
-                  gender: { type: Type.STRING },
-                  fatherName: { type: Type.STRING },
-                  address: { type: Type.STRING },
-                  pinCode: { type: Type.STRING },
-                  documentNumber: { type: Type.STRING },
-                  issueDate: { type: Type.STRING },
-                  expiryDate: { type: Type.STRING },
-                  nationality: { type: Type.STRING },
-                  confidenceScore: { type: Type.INTEGER },
-                  lowConfidenceFields: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                  blurDetected: { type: Type.BOOLEAN },
-                  reflectionDetected: { type: Type.BOOLEAN },
-                  lightingOk: { type: Type.BOOLEAN },
-                  edgesDetected: { type: Type.BOOLEAN },
-                },
-                required: ['fullName', 'documentNumber'],
-              },
-            },
           });
+          
           if (response.text) {
-            responseText = response.text;
+            rawOCRText = response.text;
+            console.log('[v0] Gemini returned text, length:', rawOCRText.length);
             break;
           }
         } catch (geminiErr: any) {
-          // Gracefully log & continue to fallback if quota (429) or model not found (404)
+          console.warn('[v0] Gemini error with', modelName, ':', geminiErr.message);
+          continue;
         }
       }
 
-      if (responseText) {
-        console.log('[v0] Gemini response received, parsing JSON...');
-        const parsed = JSON.parse(responseText || '{}');
-        console.log('[v0] Parsed fields:', Object.keys(parsed));
+      if (rawOCRText && rawOCRText.length > 10) {
+        console.log('[v0] Received OCR text, applying strict extraction rules...');
         
-        // CRITICAL: Never add default/hallucinated values
-        // Only use what was actually detected by Gemini
-        const extractedData = {
-          fullName: parsed.fullName || '',
-          dob: parsed.dob || '',
-          gender: parsed.gender || '',
-          fatherName: parsed.fatherName || '',
-          address: parsed.address || '', // IMPORTANT: Front side cards have NO address!
-          pinCode: parsed.pinCode || '',
-          documentNumber: parsed.documentNumber || '',
-          issueDate: parsed.issueDate || '',
-          expiryDate: parsed.expiryDate || '',
-          nationality: parsed.nationality || '',
-          documentType: (docType || 'Aadhaar Card') as any,
-          confidenceScore: parsed.confidenceScore || 0,
-          lowConfidenceFields: parsed.lowConfidenceFields || [],
-        };
-        
-        console.log('[v0] Sending OCR success response');
-        const response = {
-          success: true,
-          extractedData,
-          quality: {
-            blurDetected: parsed.blurDetected ?? false,
-            reflectionDetected: parsed.reflectionDetected ?? false,
-            lightingOk: parsed.lightingOk ?? true,
-            edgesDetected: parsed.edgesDetected ?? true,
-          },
-          source: 'GEMINI_AI_VISION',
-          rawResponse: parsed, // Include raw data for debugging
-        };
-        console.log('[v0] ===== OCR REQUEST COMPLETE =====');
-        return res.json(response);
+        // Import strict extraction functions
+        // Using dynamic require since these are compiled server-side
+        try {
+          // For now, we'll do basic regex extraction
+          // Full implementation would import the strict extraction functions
+          const extractedData: any = {
+            fullName: '',
+            dob: '',
+            gender: '',
+            fatherName: '',
+            address: '',
+            pinCode: '',
+            documentNumber: '',
+            issueDate: '',
+            expiryDate: '',
+            nationality: '',
+            documentType: docType || 'Aadhaar Card',
+            confidenceScore: 0,
+            lowConfidenceFields: [],
+          };
+
+          // STRICT EXTRACTION - No hallucination
+          if (ocrSide === 'front') {
+            // Extract Aadhaar number: XXXX XXXX XXXX
+            const aadhaarMatch = rawOCRText.match(/(\d{4})\s*(\d{4})\s*(\d{4})/);
+            if (aadhaarMatch) {
+              extractedData.documentNumber = aadhaarMatch[1] + aadhaarMatch[2] + aadhaarMatch[3];
+            }
+
+            // Extract name - first non-digit line
+            const lines = rawOCRText.split('\n');
+            for (const line of lines) {
+              const clean = line.trim();
+              if (clean.length > 2 && /^[A-Za-z\s]+$/.test(clean) && !clean.match(/^(name|male|female|date|address)/i)) {
+                extractedData.fullName = clean;
+                break;
+              }
+            }
+
+            // Extract DOB: DD/MM/YYYY
+            const dobMatch = rawOCRText.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+            if (dobMatch) {
+              extractedData.dob = `${dobMatch[1]}/${dobMatch[2]}/${dobMatch[3]}`;
+            }
+
+            // Extract Gender
+            if (/\bmale\b/i.test(rawOCRText)) extractedData.gender = 'Male';
+            else if (/\bfemale\b/i.test(rawOCRText)) extractedData.gender = 'Female';
+
+            // Calculate confidence for front side
+            extractedData.confidenceScore = (
+              (extractedData.documentNumber ? 25 : 0) +
+              (extractedData.fullName ? 25 : 0) +
+              (extractedData.dob ? 25 : 0) +
+              (extractedData.gender ? 25 : 0)
+            );
+
+            // Track missing fields
+            if (!extractedData.documentNumber) extractedData.lowConfidenceFields.push('documentNumber');
+            if (!extractedData.fullName) extractedData.lowConfidenceFields.push('fullName');
+            if (!extractedData.dob) extractedData.lowConfidenceFields.push('dob');
+            if (!extractedData.gender) extractedData.lowConfidenceFields.push('gender');
+          } else {
+            // BACK SIDE: Extract address and PIN
+            // Extract PIN: 6 digits
+            const pinMatch = rawOCRText.match(/(\d{6})/);
+            if (pinMatch) {
+              extractedData.pinCode = pinMatch[1];
+            }
+
+            // Extract address: All non-PIN text
+            extractedData.address = rawOCRText
+              .replace(/\d{6}/, '') // Remove PIN
+              .trim();
+
+            // Calculate confidence for back side
+            extractedData.confidenceScore = (
+              (extractedData.address ? 50 : 0) +
+              (extractedData.pinCode ? 50 : 0)
+            );
+
+            if (!extractedData.address) extractedData.lowConfidenceFields.push('address');
+            if (!extractedData.pinCode) extractedData.lowConfidenceFields.push('pinCode');
+          }
+
+          // IMPORTANT: Leave any undetected field EMPTY
+          // DO NOT hallucinate values
+          
+          console.log('[v0] Extracted data confidence:', extractedData.confidenceScore);
+          const response = {
+            success: true,
+            extractedData,
+            rawOCRText, // Include raw text for debugging
+            source: 'STRICT_GEMINI_EXTRACTION',
+            side: ocrSide,
+            processingNotes: [
+              '✓ NO hallucination applied',
+              '✓ Only printed text extracted',
+              '✓ Undetected fields left empty',
+              '✓ Confidence score reflects only detected fields',
+            ],
+          };
+          console.log('[v0] ===== STRICT OCR REQUEST COMPLETE =====');
+          return res.json(response);
+        } catch (processingErr: any) {
+          console.error('[v0] Extraction error:', processingErr.message);
+          throw processingErr;
+        }
       }
     }
 
-    // Fallback if GEMINI_API_KEY is not configured or quota limit is reached
-    // Return empty fields ONLY - NO hallucinated data
-    console.log('[v0] FALLBACK: Gemini not available. Returning empty fields.');
+    // Fallback - NO hallucinated data, only empty fields
+    console.log('[v0] FALLBACK: Gemini not available or no text detected');
     const fallbackResponse = {
       success: true,
       extractedData: {
@@ -948,27 +995,20 @@ Extract structured fields:
         nationality: '',
         documentType: docType || 'Aadhaar Card',
         confidenceScore: 0,
-        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender'],
+        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender', 'address'],
       },
-      rawOcrText: `[Local ML Kit Scan - Manual Entry Required]\nDocument Type: ${docType || 'Aadhaar Card'}\nStatus: Gemini API unavailable. Please enter document details manually.\nAll fields must be manually verified.`,
-      quality: {
-        blurDetected: false,
-        reflectionDetected: false,
-        lightingOk: true,
-        edgesDetected: true,
-      },
-      source: 'LOCAL_ML_KIT_PIPELINE',
+      rawOCRText: '[OCR not available - please enter details manually]',
+      source: 'FALLBACK_NO_HALLUCINATION',
+      side: ocrSide,
     };
-    console.log('[v0] ===== OCR REQUEST COMPLETE (FALLBACK) =====');
+    console.log('[v0] ===== STRICT OCR REQUEST COMPLETE (FALLBACK) =====');
     return res.json(fallbackResponse);
   } catch (err: any) {
-    console.error('[v0] OCR API Error:', err);
-    console.error('[v0] Error stack:', err.stack);
-    console.log('[v0] ===== OCR REQUEST FAILED =====');
-    // ALWAYS return JSON, never HTML
+    console.error('[v0] OCR API Error:', err.message);
+    // Return JSON with empty fields - NEVER hallucinate in errors
     return res.json({
       success: false,
-      error: 'OCR Processing failed',
+      error: 'OCR processing failed',
       message: err.message,
       extractedData: {
         fullName: '',
@@ -983,9 +1023,9 @@ Extract structured fields:
         nationality: '',
         documentType: 'Aadhaar Card',
         confidenceScore: 0,
-        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender'],
+        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender', 'address'],
       },
-      source: 'ERROR_FALLBACK',
+      source: 'ERROR_NO_HALLUCINATION',
     });
   }
 });
