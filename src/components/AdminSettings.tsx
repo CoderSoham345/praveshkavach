@@ -68,7 +68,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
 
   const handleTestTelegram = async () => {
     setTestingConnection(true);
+    console.log('[v0] Testing Telegram connection with token and chat ID');
     try {
+      console.log('[v0] Sending POST to /api/telegram/test');
       const res = await fetch('/api/telegram/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,7 +79,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
           defaultChatId: chatIdInput.trim() || undefined,
         }),
       });
+      
+      console.log('[v0] Response status:', res.status, res.statusText);
+      console.log('[v0] Response content-type:', res.headers.get('content-type'));
+      
+      if (!res.ok) {
+        console.error('[v0] Response not OK, attempting to read text first');
+        const text = await res.text();
+        console.error('[v0] Response body (first 200 chars):', text.substring(0, 200));
+        throw new Error(`HTTP ${res.status}: ${text.substring(0, 100)}`);
+      }
+      
       const data = await res.json();
+      console.log('[v0] Parsed JSON response:', { success: data.success, message: data.message });
+      
       setConnectionStatus({
         tested: true,
         success: data.success,
@@ -88,6 +103,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ buildings, auditLo
         setLastMessageTime(new Date().toISOString());
       }
     } catch (e: any) {
+      console.error('[v0] Telegram test error:', e);
       setConnectionStatus({
         tested: true,
         success: false,

@@ -12,6 +12,18 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '25mb' }));
 
+// Global error handler middleware - ensures all errors return JSON, never HTML
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('[v0] Unhandled error:', err);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({
+      success: false,
+      error: 'Internal server error',
+      message: err.message,
+    });
+  }
+});
+
 // In-memory data store for live persistence during container session
 // CRITICAL: Empty initialization - all data will come from Firebase Firestore
 let visitorsStore: VisitorRecord[] = [];
@@ -96,11 +108,16 @@ app.post('/api/telegram/config', (req, res) => {
 
 // Test Telegram Connection Endpoint
 app.post('/api/telegram/test', async (req, res) => {
+  console.log('[v0] Telegram test started');
   try {
     const token = req.body?.botToken || telegramConfig.botToken;
     const chatId = req.body?.defaultChatId || telegramConfig.defaultChatId;
 
+    console.log('[v0] Telegram token present:', !!token);
+    console.log('[v0] Telegram chat ID present:', !!chatId);
+
     if (!token) {
+      console.log('[v0] ERROR: No token provided');
       return res.json({
         success: false,
         message: 'Telegram Connection Failed: No Bot Token provided or configured.',
@@ -108,10 +125,22 @@ app.post('/api/telegram/test', async (req, res) => {
     }
 
     // Call Telegram API getMe
+    console.log('[v0] Calling Telegram getMe API');
     const tgRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    
+    if (!tgRes.ok) {
+      console.error('[v0] Telegram API HTTP error:', tgRes.status, tgRes.statusText);
+      return res.json({
+        success: false,
+        message: `Telegram Connection Failed: HTTP ${tgRes.status} from Telegram API`,
+      });
+    }
+
     const tgData = await tgRes.json();
+    console.log('[v0] Telegram API response:', tgData.ok ? 'OK' : 'NOT OK');
 
     if (!tgData.ok) {
+      console.log('[v0] Telegram API returned error:', tgData.description);
       return res.json({
         success: false,
         message: `Telegram Connection Failed: ${tgData.description || 'Invalid Bot Token'}`,
@@ -124,6 +153,7 @@ app.post('/api/telegram/test', async (req, res) => {
     // Send test notification if Chat ID is present
     if (chatId) {
       try {
+        console.log('[v0] Sending test message to chat ID:', chatId);
         const msgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -133,22 +163,31 @@ app.post('/api/telegram/test', async (req, res) => {
             parse_mode: 'Markdown',
           }),
         });
-        const msgData = await msgRes.json();
-        testMessageSent = msgData.ok;
+        
+        if (msgRes.ok) {
+          const msgData = await msgRes.json();
+          testMessageSent = msgData.ok;
+          console.log('[v0] Test message sent:', testMessageSent);
+        } else {
+          console.log('[v0] Failed to send test message HTTP:', msgRes.status);
+        }
       } catch (e) {
-        console.warn('Test Telegram Message exception:', e);
+        console.warn('[v0] Test Telegram Message exception:', e);
       }
     }
 
     telegramConfig.lastMessageTime = new Date().toISOString();
 
-    return res.json({
+    const response = {
       success: true,
       botInfo: tgData.result,
       testMessageSent,
       message: `Telegram Connected Successfully (@${tgData.result.username || botName})`,
-    });
+    };
+    console.log('[v0] Telegram test complete - returning success');
+    return res.json(response);
   } catch (err: any) {
+    console.error('[v0] Telegram test exception:', err.message);
     return res.json({
       success: false,
       message: `Telegram Connection Failed: ${err.message}`,
@@ -358,7 +397,12 @@ app.post('/api/telegram/send-approval', async (req, res) => {
         : 'Telegram notification dispatched via active gateway.',
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('[v0] send-approval error:', err);
+    return res.json({
+      success: false,
+      error: err.message,
+      message: 'Failed to send approval notification',
+    });
   }
 });
 
@@ -736,10 +780,14 @@ setInterval(pollTelegramUpdates, 3000);
 
 // Initialize Gemini Client server-side
 const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.AI_GATEWAY_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('[v0] No API key configured for Gemini. Set either GEMINI_API_KEY or AI_GATEWAY_API_KEY');
     return null;
   }
+  
+  // GoogleGenAI works with Vercel AI Gateway when using gateway API key
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -929,7 +977,28 @@ Extract structured fields:
     console.error('[v0] OCR API Error:', err);
     console.error('[v0] Error stack:', err.stack);
     console.log('[v0] ===== OCR REQUEST FAILED =====');
-    return res.status(500).json({ success: false, error: 'OCR Processing failed', message: err.message });
+    // ALWAYS return JSON, never HTML
+    return res.json({
+      success: false,
+      error: 'OCR Processing failed',
+      message: err.message,
+      extractedData: {
+        fullName: '',
+        dob: '',
+        gender: '',
+        fatherName: '',
+        address: '',
+        pinCode: '',
+        documentNumber: '',
+        issueDate: '',
+        expiryDate: '',
+        nationality: '',
+        documentType: 'Aadhaar Card',
+        confidenceScore: 0,
+        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender'],
+      },
+      source: 'ERROR_FALLBACK',
+    });
   }
 });
 
