@@ -85,11 +85,11 @@ export default function App() {
     faceMatchScore: 98,
   });
 
-  const [selectedResidentId, setSelectedResidentId] = useState<string>('res-101');
-  const [visitPurpose, setVisitPurpose] = useState<string>('Personal Visit');
+  const [selectedResidentId, setSelectedResidentId] = useState<string>('');
+  const [visitPurpose, setVisitPurpose] = useState<string>('');
   const [vehicleNumber, setVehicleNumber] = useState<string>('');
   const [numAccompanying, setNumAccompanying] = useState<number>(1);
-  const [visitorPhone, setVisitorPhone] = useState<string>('+91 98989 12345');
+  const [visitorPhone, setVisitorPhone] = useState<string>('');
 
   const [currentVisitorRecord, setCurrentVisitorRecord] = useState<VisitorRecord | null>(null);
 
@@ -121,26 +121,33 @@ export default function App() {
 
   // Step 2 Completed -> Go directly to Step 4 (Back Document Scan)
   const handleFrontCaptureCompleted = async (imageUrl: string, isSample?: boolean, sampleData?: any) => {
+    console.log('[v0] Front capture completed:', { isSample, hasSampleData: !!sampleData });
     setFrontDocImage(imageUrl);
 
     if (isSample && sampleData) {
+      console.log('[v0] CRITICAL: Using sample/demo data instead of real OCR:', sampleData);
       setExtractedData(sampleData);
       setCurrentStep(4);
       return;
     }
 
     try {
+      console.log('[v0] Calling OCR API with doc type:', selectedDocType);
       const res = await fetch('/api/ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: imageUrl, docType: selectedDocType }),
       });
       const data = await res.json();
+      console.log('[v0] OCR Response:', data);
       if (data.success && data.extractedData) {
+        console.log('[v0] Setting extracted data:', data.extractedData);
         setExtractedData(data.extractedData);
+      } else {
+        console.log('[v0] OCR did not return success or extractedData');
       }
     } catch (err) {
-      console.warn('OCR fetch fallback:', err);
+      console.error('[v0] OCR fetch failed:', err);
     }
 
     setCurrentStep(4); // Move to Scan Back Side
