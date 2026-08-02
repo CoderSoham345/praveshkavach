@@ -37,8 +37,8 @@ let buildingsStore: any[] = [];
 
 // Telegram Bot Settings Store
 let telegramConfig = {
-  botToken: process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '',
-  defaultChatId: process.env.TELEGRAM_CHAT_ID || '',
+  botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+  defaultChatId: process.env.TELEGRAM_DEFAULT_CHAT_ID || '',
   botEnabled: true,
   lastMessageTime: null as string | null,
 };
