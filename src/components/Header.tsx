@@ -41,10 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   const roles: { value: UserRole; label: string; icon: string }[] = [
     { value: 'SECURITY_GUARD', label: 'Security Guard', icon: '🛡️' },
     { value: 'RESIDENT', label: 'Resident / Host', icon: '🏠' },
-    { value: 'RECEPTIONIST', label: 'Receptionist', icon: '🏢' },
     { value: 'ADMIN', label: 'System Admin', icon: '⚙️' },
-    { value: 'VISITOR', label: 'Visitor View', icon: '👤' },
-    { value: 'FACILITY_MANAGER', label: 'Facility Manager', icon: '🔑' },
   ];
 
   return (

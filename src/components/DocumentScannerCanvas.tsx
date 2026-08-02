@@ -40,8 +40,8 @@ export const DocumentScannerCanvas: React.FC<DocumentScannerCanvasProps> = ({
   const prevCornersRef = useRef<QuadCorners | null>(null);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
 
-  // Is current document supported? Only Aadhaar Card and PAN Card allowed
-  const isSupportedDocType = selectedDocType === 'Aadhaar Card' || selectedDocType === 'PAN Card';
+  // Document types are now all supported (20+ types)
+  const isSupportedDocType = selectedDocType !== 'AUTOMATIC_DETECTION' || selectedDocType !== 'OTHER_IDENTITY_DOC';
 
   // Initialize camera
   const initCamera = async () => {
@@ -275,7 +275,7 @@ export const DocumentScannerCanvas: React.FC<DocumentScannerCanvasProps> = ({
           <div className="bg-rose-600/95 text-white px-5 py-2.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 border border-rose-400">
             <XCircle className="w-5 h-5 text-amber-300 shrink-0" />
             <span className="text-xs sm:text-sm font-extrabold tracking-wide">
-              Unsupported document. Please scan an Aadhaar Card or PAN Card.
+              Scanning any government-issued ID. Position document in frame.
             </span>
           </div>
         )}
