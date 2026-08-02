@@ -57,6 +57,125 @@ function broadcastEvent(eventType: string, payload: any) {
   });
 }
 
+// Test user database (should be replaced with Firebase Firestore)
+// TODO: Replace with real Firebase authentication
+const testUsers = [
+  {
+    id: 'resident-1',
+    email: 'resident@test.com',
+    passwordHash: 'Resident@123', // TODO: Use bcrypt hashing in production
+    name: 'Rajesh Sharma',
+    role: 'RESIDENT' as const,
+    avatar: '👨',
+  },
+  {
+    id: 'guard-1',
+    email: 'guard@test.com',
+    passwordHash: 'Guard@123',
+    name: 'Priya Patel',
+    role: 'SECURITY_GUARD' as const,
+    avatar: '👮',
+  },
+  {
+    id: 'admin-1',
+    email: 'admin@test.com',
+    passwordHash: 'Admin@123',
+    name: 'System Administrator',
+    role: 'ADMIN' as const,
+    avatar: '👔',
+  },
+];
+
+// Session store - maps tokens to users
+const sessionStore = new Map<string, { userId: string; expiresAt: Date }>();
+
+// Generate a simple session token (in production, use JWT or OAuth)
+function generateSessionToken(): string {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+// Authentication Endpoint - Backend validates credentials
+app.post('/api/auth/login', (req, res) => {
+  console.log('[v0] Login attempt for email:', req.body.email);
+  
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      });
+    }
+
+    // Find user in test database (replace with Firebase query)
+    const user = testUsers.find(u => u.email === email);
+
+    if (!user) {
+      console.log('[v0] User not found:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    // TODO: Use bcrypt.compare() in production instead of direct comparison
+    if (user.passwordHash !== password) {
+      console.log('[v0] Password mismatch for user:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Generate session token
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    sessionStore.set(token, { userId: user.id, expiresAt });
+
+    console.log('[v0] Login successful for:', email, '| Token:', token.substring(0, 8) + '...');
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
+  } catch (error) {
+    console.error('[v0] Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login',
+    });
+  }
+});
+
+// Session validation middleware
+function validateSession(req: express.Request): { userId: string } | null {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return null;
+  }
+
+  const session = sessionStore.get(token);
+  
+  if (!session || new Date() > session.expiresAt) {
+    if (session) {
+      sessionStore.delete(token);
+    }
+    return null;
+  }
+
+  return { userId: session.userId };
+}
+
 // Real-Time Server-Sent Events Endpoint
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');

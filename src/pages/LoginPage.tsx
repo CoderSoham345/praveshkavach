@@ -162,8 +162,10 @@ export function LoginPage() {
           </div>
 
           {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-white/10 text-center text-xs text-slate-400">
+          <div className="mt-8 pt-6 border-t border-white/10 text-center text-xs text-slate-400 space-y-2">
             <p>Session expires after 30 minutes of inactivity</p>
+            <p className="text-slate-500">Using backend authentication validation</p>
+            <p className="text-slate-600">In production: Connect to Firebase Auth or OAuth provider</p>
           </div>
         </div>
       </div>
