@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useRole } from '../context/RoleContext';
 import { Navbar } from '../components/layout/Navbar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { AIChatbot } from '../components/chatbot/AIChatbot';
@@ -8,11 +8,11 @@ import { SecurityGuardDashboard } from './dashboards/SecurityGuardDashboard';
 import { ResidentDashboard } from './dashboards/ResidentDashboard';
 
 export function DashboardLayout() {
-  const { user } = useAuth();
+  const { role, user } = useRole();
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const renderDashboard = () => {
-    switch (user?.role) {
+    switch (role) {
       case 'ADMIN':
         return <AdminDashboard activeTab={activeTab} />;
       case 'SECURITY_GUARD':

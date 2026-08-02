@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useRole } from '../context/RoleContext';
 import { Header } from '../components/Header';
 import { Navigation } from '../components/Navigation';
 import { MobileFrame } from '../components/MobileFrame';
@@ -11,7 +11,7 @@ import { CheckCircle2, FileText, Users, Car, Bell, Clock, X } from 'lucide-react
 import { VisitorRecord, AnalyticsStats } from '../types';
 
 export function ResidentDashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout } = useRole();
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'settings'>('dashboard');
   const [syncTime, setSyncTime] = useState<string>(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));

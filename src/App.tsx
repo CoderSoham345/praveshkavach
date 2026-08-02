@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
-import { useAuth } from './context/AuthContext';
-import { LoginPage } from './pages/LoginPage';
+import React from 'react';
+import { useRole } from './context/RoleContext';
+import { RoleSelectionPage } from './pages/RoleSelectionPage';
 import { SecurityGuardWorkflow } from './pages/SecurityGuardWorkflow';
 import { ResidentDashboardPage } from './pages/ResidentDashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
 export default function App() {
-  const { isAuthenticated, user, isInitialized, isLoading } = useAuth();
+  const { role, user, isInitialized, setRole } = useRole();
 
   // Still initializing
   if (!isInitialized) {
@@ -14,21 +14,21 @@ export default function App() {
       <div className="flex items-center justify-center h-screen bg-slate-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Initializing...</p>
+          <p className="text-slate-300">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Not authenticated - show login
-  if (!isAuthenticated || !user) {
-    return <LoginPage />;
+  // No role selected - show role selection
+  if (!role || !user) {
+    return <RoleSelectionPage onRoleSelected={(selection) => setRole(selection.role, selection.userName)} />;
   }
 
-  console.log('[v0] App routing - user role:', user.role);
+  console.log('[v0] App routing - user role:', role, 'name:', user.name);
 
   // Route based on role
-  switch (user.role) {
+  switch (role) {
     case 'SECURITY_GUARD':
       return <SecurityGuardWorkflow />;
     
@@ -39,6 +39,6 @@ export default function App() {
       return <AdminDashboardPage />;
     
     default:
-      return <LoginPage />;
+      return <RoleSelectionPage onRoleSelected={(selection) => setRole(selection.role, selection.userName)} />;
   }
 }

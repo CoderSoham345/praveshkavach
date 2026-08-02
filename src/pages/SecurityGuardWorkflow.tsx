@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useRole } from '../context/RoleContext';
 import { Header } from '../components/Header';
 import { Navigation } from '../components/Navigation';
 import { MobileFrame } from '../components/MobileFrame';
@@ -29,7 +29,7 @@ import {
 } from '../types';
 
 export function SecurityGuardWorkflow() {
-  const { user, logout } = useAuth();
+  const { user, logout } = useRole();
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'scanner' | 'history' | 'residents' | 'reports' | 'admin'>('dashboard');
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(1);
