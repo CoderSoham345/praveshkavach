@@ -791,244 +791,322 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'PraveshKavach™ Visitor Management System', developer: 'High Tech Surveillance Systems Pvt. Ltd.', timestamp: new Date() });
 });
 
-// AI OCR Endpoint using Gemini with Strict Non-Hallucination Constraints and Graceful Quota Fallback
+// Enterprise OCR Endpoint using OCR.Space API
+// Complete pipeline: Preprocess → OCR.Space → Classify → Extract → Validate → Return
 app.post('/api/ocr', async (req, res) => {
-  console.log('[v0] ===== STRICT OCR REQUEST START =====');
+  const startTime = Date.now();
+  console.log('[v0] ===== OCR.Space Pipeline START =====');
+  
   try {
-    const { imageBase64, docType, side } = req.body;
-    console.log('[v0] Request received. Image size:', imageBase64 ? imageBase64.length : 'MISSING');
-    console.log('[v0] Document type:', docType, 'Side:', side);
-
+    const { imageBase64, side } = req.body;
+    
     if (!imageBase64) {
-      console.log('[v0] ERROR: imageBase64 is missing');
       return res.status(400).json({ success: false, error: 'imageBase64 field is required' });
     }
 
-    const ai = getGeminiClient();
-    const ocrSide = (side as 'front' | 'back') || 'front';
-    console.log('[v0] Processing OCR for:', ocrSide, 'side');
-
-    if (ai) {
-      // Clean base64 string
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-      
-      // CRITICAL: Instruct Gemini to return RAW OCR TEXT ONLY
-      // No parsing, no inference, no hallucination
-      const prompt = `You are an OCR text extraction engine for government ID documents.
-Your ONLY task: Extract and return the EXACT text visible on this document image.
-
-RULES:
-- Extract ONLY text that is VISIBLY PRINTED on the document
-- DO NOT infer, guess, or hallucinate any values
-- DO NOT fabricate missing information
-- Return the text exactly as it appears
-- For ${ocrSide} side of ${docType}:
-${ocrSide === 'front' 
-  ? `  - Extract: Name, Aadhaar Number, Date of Birth, Gender, Father/Guardian Name
-  - DO NOT include address (front side has no address)`
-  : `  - Extract: Full Address, PIN Code, State, City/District
-  - Extract address lines exactly as printed`
-}
-
-Format the output as a clean text dump of all extracted text, maintaining structure and line breaks.`;
-
-      const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash'];
-      let rawOCRText: string | null = null;
-
-      for (const modelName of modelsToTry) {
-        try {
-          console.log('[v0] Attempting Gemini model:', modelName);
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: {
-              parts: [
-                {
-                  inlineData: {
-                    mimeType: 'image/jpeg',
-                    data: cleanBase64,
-                  },
-                },
-                { text: prompt },
-              ],
-            },
-          });
-          
-          if (response.text) {
-            rawOCRText = response.text;
-            console.log('[v0] Gemini returned text, length:', rawOCRText.length);
-            break;
-          }
-        } catch (geminiErr: any) {
-          console.warn('[v0] Gemini error with', modelName, ':', geminiErr.message);
-          continue;
-        }
-      }
-
-      if (rawOCRText && rawOCRText.length > 10) {
-        console.log('[v0] Received OCR text, applying strict extraction rules...');
-        
-        // Import strict extraction functions
-        // Using dynamic require since these are compiled server-side
-        try {
-          // For now, we'll do basic regex extraction
-          // Full implementation would import the strict extraction functions
-          const extractedData: any = {
-            fullName: '',
-            dob: '',
-            gender: '',
-            fatherName: '',
-            address: '',
-            pinCode: '',
-            documentNumber: '',
-            issueDate: '',
-            expiryDate: '',
-            nationality: '',
-            documentType: docType || 'Aadhaar Card',
-            confidenceScore: 0,
-            lowConfidenceFields: [],
-          };
-
-          // STRICT EXTRACTION - No hallucination
-          if (ocrSide === 'front') {
-            // Extract Aadhaar number: XXXX XXXX XXXX
-            const aadhaarMatch = rawOCRText.match(/(\d{4})\s*(\d{4})\s*(\d{4})/);
-            if (aadhaarMatch) {
-              extractedData.documentNumber = aadhaarMatch[1] + aadhaarMatch[2] + aadhaarMatch[3];
-            }
-
-            // Extract name - first non-digit line
-            const lines = rawOCRText.split('\n');
-            for (const line of lines) {
-              const clean = line.trim();
-              if (clean.length > 2 && /^[A-Za-z\s]+$/.test(clean) && !clean.match(/^(name|male|female|date|address)/i)) {
-                extractedData.fullName = clean;
-                break;
-              }
-            }
-
-            // Extract DOB: DD/MM/YYYY
-            const dobMatch = rawOCRText.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
-            if (dobMatch) {
-              extractedData.dob = `${dobMatch[1]}/${dobMatch[2]}/${dobMatch[3]}`;
-            }
-
-            // Extract Gender
-            if (/\bmale\b/i.test(rawOCRText)) extractedData.gender = 'Male';
-            else if (/\bfemale\b/i.test(rawOCRText)) extractedData.gender = 'Female';
-
-            // Calculate confidence for front side
-            extractedData.confidenceScore = (
-              (extractedData.documentNumber ? 25 : 0) +
-              (extractedData.fullName ? 25 : 0) +
-              (extractedData.dob ? 25 : 0) +
-              (extractedData.gender ? 25 : 0)
-            );
-
-            // Track missing fields
-            if (!extractedData.documentNumber) extractedData.lowConfidenceFields.push('documentNumber');
-            if (!extractedData.fullName) extractedData.lowConfidenceFields.push('fullName');
-            if (!extractedData.dob) extractedData.lowConfidenceFields.push('dob');
-            if (!extractedData.gender) extractedData.lowConfidenceFields.push('gender');
-          } else {
-            // BACK SIDE: Extract address and PIN
-            // Extract PIN: 6 digits
-            const pinMatch = rawOCRText.match(/(\d{6})/);
-            if (pinMatch) {
-              extractedData.pinCode = pinMatch[1];
-            }
-
-            // Extract address: All non-PIN text
-            extractedData.address = rawOCRText
-              .replace(/\d{6}/, '') // Remove PIN
-              .trim();
-
-            // Calculate confidence for back side
-            extractedData.confidenceScore = (
-              (extractedData.address ? 50 : 0) +
-              (extractedData.pinCode ? 50 : 0)
-            );
-
-            if (!extractedData.address) extractedData.lowConfidenceFields.push('address');
-            if (!extractedData.pinCode) extractedData.lowConfidenceFields.push('pinCode');
-          }
-
-          // IMPORTANT: Leave any undetected field EMPTY
-          // DO NOT hallucinate values
-          
-          console.log('[v0] Extracted data confidence:', extractedData.confidenceScore);
-          const response = {
-            success: true,
-            extractedData,
-            rawOCRText, // Include raw text for debugging
-            source: 'STRICT_GEMINI_EXTRACTION',
-            side: ocrSide,
-            processingNotes: [
-              '✓ NO hallucination applied',
-              '✓ Only printed text extracted',
-              '✓ Undetected fields left empty',
-              '✓ Confidence score reflects only detected fields',
-            ],
-          };
-          console.log('[v0] ===== STRICT OCR REQUEST COMPLETE =====');
-          return res.json(response);
-        } catch (processingErr: any) {
-          console.error('[v0] Extraction error:', processingErr.message);
-          throw processingErr;
-        }
-      }
+    const ocrApiKey = process.env.OCR_SPACE_API_KEY;
+    if (!ocrApiKey) {
+      console.error('[v0] OCR_SPACE_API_KEY not configured');
+      return res.status(500).json({ success: false, error: 'OCR service not configured' });
     }
 
-    // Fallback - NO hallucinated data, only empty fields
-    console.log('[v0] FALLBACK: Gemini not available or no text detected');
-    const fallbackResponse = {
+    // Step 1: Preprocess image
+    const preprocessStart = Date.now();
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const preprocessingTime = Date.now() - preprocessStart;
+    console.log('[v0] Image preprocessing completed:', preprocessingTime, 'ms');
+
+    // Step 2: Call OCR.Space API with optimized parameters
+    const ocrStart = Date.now();
+    console.log('[v0] Calling OCR.Space API with key:', ocrApiKey.substring(0, 10) + '...');
+    
+    const formData = new FormData();
+    formData.append('apikey', ocrApiKey);
+    formData.append('base64Image', `data:image/jpeg;base64,${cleanBase64}`);
+    formData.append('language', 'eng'); // English for Indian documents
+    formData.append('ocrEngine', '2'); // Engine 2: Tesseract 5.x (best accuracy)
+    formData.append('filetype', 'PDF'); // Treat as document
+    formData.append('detectOrientation', 'true'); // Auto-rotate
+    formData.append('isOverlayRequired', 'false'); // Faster processing
+
+    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!ocrResponse.ok) {
+      throw new Error(`OCR.Space API error: ${ocrResponse.status}`);
+    }
+
+    const ocrData = await ocrResponse.json() as any;
+    const ocrTime = Date.now() - ocrStart;
+    console.log('[v0] OCR.Space processing completed:', ocrTime, 'ms');
+
+    if (ocrData.isErroredOnProcessing) {
+      throw new Error(`OCR.Space error: ${ocrData.errorMessage}`);
+    }
+
+    const rawOCRText = ocrData.parsedText || '';
+    console.log('[v0] Raw OCR text length:', rawOCRText.length);
+
+    // Step 3: Auto-detect document type
+    console.log('[v0] Classifying document type...');
+    const classification = classifyDocumentFromOCR(rawOCRText, side);
+    console.log('[v0] Document classified as:', classification.documentType, '| Confidence:', classification.confidence);
+
+    // Step 4: Extract structured fields based on document type
+    console.log('[v0] Extracting document fields...');
+    const extractedData = extractDocumentFields(rawOCRText, classification.documentType);
+    
+    // Step 5: Calculate confidence and validation status
+    const confidenceScore = calculateOverallConfidence(extractedData);
+    const validationStatus = validateExtractedData(extractedData, classification.documentType);
+
+    // Step 6: Enterprise logging
+    const totalTime = Date.now() - startTime;
+    logOCRMetrics({
+      documentType: classification.documentType,
+      confidence: confidenceScore,
+      totalTime,
+      preprocessingTime,
+      ocrTime,
+      extractedFields: Object.keys(extractedData).length,
+      validationStatus,
+      side,
+    });
+
+    // Step 7: Return structured response
+    const response = {
       success: true,
-      extractedData: {
-        fullName: '',
-        dob: '',
-        gender: '',
-        fatherName: '',
-        address: '',
-        pinCode: '',
-        documentNumber: '',
-        issueDate: '',
-        expiryDate: '',
-        nationality: '',
-        documentType: docType || 'Aadhaar Card',
-        confidenceScore: 0,
-        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender', 'address'],
+      documentClassification: {
+        documentType: classification.documentType,
+        confidence: classification.confidence,
+        side: classification.side,
       },
-      rawOCRText: '[OCR not available - please enter details manually]',
-      source: 'FALLBACK_NO_HALLUCINATION',
-      side: ocrSide,
+      extractedData: {
+        ...extractedData,
+        confidenceScore,
+      },
+      validation: {
+        status: validationStatus,
+        needsReview: confidenceScore < 85 || validationStatus.hasErrors,
+        lowConfidenceFields: extractedData.lowConfidenceFields || [],
+      },
+      rawOCRText,
+      source: 'OCR_SPACE_PIPELINE',
+      processingMetrics: {
+        totalTime,
+        preprocessingTime,
+        ocrTime,
+        ocrLatency: ocrData.ocrEngineTime,
+      },
     };
-    console.log('[v0] ===== STRICT OCR REQUEST COMPLETE (FALLBACK) =====');
-    return res.json(fallbackResponse);
+
+    console.log('[v0] ===== OCR.Space Pipeline COMPLETE ===== Total time:', totalTime, 'ms');
+    return res.json(response);
+
   } catch (err: any) {
-    console.error('[v0] OCR API Error:', err.message);
-    // Return JSON with empty fields - NEVER hallucinate in errors
+    console.error('[v0] OCR Pipeline Error:', err.message);
+    const totalTime = Date.now() - startTime;
+    
+    // Log error metrics
+    logOCRMetrics({
+      documentType: 'UNKNOWN',
+      confidence: 0,
+      totalTime,
+      error: err.message,
+    });
+
     return res.json({
       success: false,
       error: 'OCR processing failed',
       message: err.message,
       extractedData: {
-        fullName: '',
-        dob: '',
-        gender: '',
-        fatherName: '',
-        address: '',
-        pinCode: '',
-        documentNumber: '',
-        issueDate: '',
-        expiryDate: '',
-        nationality: '',
-        documentType: 'Aadhaar Card',
+        documentType: 'UNKNOWN',
         confidenceScore: 0,
-        lowConfidenceFields: ['fullName', 'documentNumber', 'dob', 'gender', 'address'],
+        lowConfidenceFields: [],
       },
-      source: 'ERROR_NO_HALLUCINATION',
+      validation: {
+        status: 'FAILED',
+        needsReview: true,
+      },
+      source: 'ERROR_RECOVERY',
     });
   }
 });
+
+// Helper: Classify document from OCR text
+function classifyDocumentFromOCR(text: string, hintSide?: 'front' | 'back'): any {
+  const upperText = text.toUpperCase();
+  const indicators: string[] = [];
+
+  // Aadhaar detection
+  if (/AADHAAR|UIDAI|U\.I\.D\.A\.I/.test(upperText)) {
+    indicators.push('Aadhaar/UIDAI keyword found');
+    if (/\d{4}\s\d{4}\s\d{4}/.test(text)) {
+      indicators.push('Aadhaar number pattern found');
+      return {
+        documentType: hintSide === 'back' ? 'AADHAAR_BACK' : 'AADHAAR_FRONT',
+        confidence: 95,
+        side: hintSide || 'front',
+        indicators,
+      };
+    }
+  }
+
+  // PAN detection
+  if (/PAN|INCOME\s+TAX|AADHAAR|ITIN/.test(upperText) && /[A-Z]{5}[0-9]{4}[A-Z]/.test(text)) {
+    indicators.push('PAN format found');
+    return {
+      documentType: 'PAN_CARD',
+      confidence: 90,
+      side: 'front',
+      indicators,
+    };
+  }
+
+  // Passport detection
+  if (/PASSPORT|GOVERNMENT\s+OF\s+INDIA/.test(upperText)) {
+    indicators.push('Passport keyword found');
+    return {
+      documentType: 'PASSPORT',
+      confidence: 85,
+      side: 'front',
+      indicators,
+    };
+  }
+
+  // Driving Licence detection
+  if (/DRIVING\s+LI[CS]EN[CS]E|RTO|LICENSE\s+NUMBER/.test(upperText)) {
+    indicators.push('Driving Licence keyword found');
+    return {
+      documentType: 'DRIVING_LICENCE',
+      confidence: 85,
+      side: 'front',
+      indicators,
+    };
+  }
+
+  // Voter ID detection
+  if (/VOTER|EPIC|ELECTION\s+COMMISSION|CONSTITUENCY/.test(upperText)) {
+    indicators.push('Voter ID keyword found');
+    return {
+      documentType: 'VOTER_ID',
+      confidence: 80,
+      side: 'front',
+      indicators,
+    };
+  }
+
+  // RC Book detection
+  if (/REGISTRATION\s+CERTIFICATE|VEHICLE\s+REGISTRATION|CHASSIS\s+NUMBER|ENGINE\s+NUMBER/.test(upperText)) {
+    indicators.push('RC Book keywords found');
+    return {
+      documentType: 'RC_BOOK',
+      confidence: 85,
+      side: 'front',
+      indicators,
+    };
+  }
+
+  return {
+    documentType: 'UNKNOWN',
+    confidence: 0,
+    side: hintSide || 'front',
+    indicators: ['No document type match found'],
+  };
+}
+
+// Helper: Extract fields based on document type
+function extractDocumentFields(text: string, documentType: string): any {
+  const data: any = {
+    documentType,
+    lowConfidenceFields: [],
+  };
+
+  // Common extractions
+  const aadhaarMatch = text.match(/(\d{4})\s*(\d{4})\s*(\d{4})/);
+  if (aadhaarMatch) {
+    data.documentNumber = `${aadhaarMatch[1]}${aadhaarMatch[2]}${aadhaarMatch[3]}`;
+  }
+
+  const nameMatch = text.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/);
+  if (nameMatch) {
+    data.name = nameMatch[0];
+  }
+
+  const dobMatch = text.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+  if (dobMatch) {
+    data.dateOfBirth = `${dobMatch[1]}/${dobMatch[2]}/${dobMatch[3]}`;
+  }
+
+  const pinMatch = text.match(/\b(\d{6})\b/);
+  if (pinMatch) {
+    data.pinCode = pinMatch[1];
+  }
+
+  if (/\bmale\b/i.test(text)) data.gender = 'Male';
+  else if (/\bfemale\b/i.test(text)) data.gender = 'Female';
+
+  return data;
+}
+
+// Helper: Calculate overall confidence
+function calculateOverallConfidence(data: any): number {
+  let score = 0;
+  let count = 0;
+
+  if (data.name) {
+    score += 25;
+  }
+  count += 1;
+
+  if (data.documentNumber) {
+    score += 25;
+  }
+  count += 1;
+
+  if (data.dateOfBirth) {
+    score += 25;
+  }
+  count += 1;
+
+  if (data.gender || data.pinCode) {
+    score += 25;
+  }
+  count += 1;
+
+  return count > 0 ? Math.round((score / (count * 25)) * 100) : 0;
+}
+
+// Helper: Validate extracted data
+function validateExtractedData(data: any, documentType: string): any {
+  const errors = [];
+
+  if (documentType === 'PAN_CARD' && data.documentNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(data.documentNumber)) {
+    errors.push('Invalid PAN format');
+  }
+
+  if (data.pinCode && !/^\d{6}$/.test(data.pinCode)) {
+    errors.push('Invalid PIN code format');
+  }
+
+  return {
+    hasErrors: errors.length > 0,
+    errors,
+  };
+}
+
+// Helper: Log OCR metrics for analytics
+function logOCRMetrics(metrics: any): void {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    ...metrics,
+  };
+
+  console.log('[v0] OCR Metrics:', JSON.stringify(logEntry));
+  // In production, send to analytics service
+}
 
 // AI Face Verification Endpoint
 app.post('/api/face-match', async (req, res) => {
