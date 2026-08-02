@@ -19,7 +19,8 @@ interface AuthContextType {
   isLoading: boolean;
   isInitialized: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   sessionToken: string | null;
   getDashboardPath: () => string;
@@ -120,8 +121,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const register = async (email: string, password: string, name: string, role: UserRole) => {
+    setIsLoading(true);
+    try {
+      console.log('[v0] Register attempt:', email, 'role:', role);
+      
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, role }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      const data = await response.json();
+      console.log('[v0] Register response:', data);
+      
+      if (!data.success || !data.user || !data.token) {
+        throw new Error('Invalid response from server');
+      }
+
+      const newUser: User = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+        avatar: data.user.avatar,
+        building: data.user.building,
+        flatNumber: data.user.flatNumber,
+        gate: data.user.gate,
+        shift: data.user.shift,
+      };
+
+      setUser(newUser);
+      setSessionToken(data.token);
+      
+      sessionStorage.setItem('praveshkavach_user', JSON.stringify(newUser));
+      sessionStorage.setItem('praveshkavach_token', data.token);
+      
+      console.log('[v0] Registration successful - role:', newUser.role);
+    } catch (error) {
+      console.error('[v0] Register error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
     console.log('[v0] Logout');
+    try {
+      // Call backend logout endpoint
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+      });
+    } catch (error) {
+      console.warn('[v0] Backend logout failed, clearing local session anyway:', error);
+    }
+    
     setUser(null);
     setSessionToken(null);
     sessionStorage.removeItem('praveshkavach_user');
@@ -139,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isInitialized,
       login,
+      register,
       logout,
       isAuthenticated: !!user,
       sessionToken,

@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { UserRole } from '../types';
+import { Lock, Mail, Eye, EyeOff, AlertCircle, User, ArrowRight } from 'lucide-react';
 
 export function LoginPage() {
-  const { login, isLoading } = useAuth();
+  const { login, register, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerName, setRegisterName] = useState('');
+  const [registerRole, setRegisterRole] = useState<UserRole>('RESIDENT');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoggingIn(true);
@@ -21,6 +26,37 @@ export function LoginPage() {
       // App component will automatically redirect to dashboard on successful login
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!registerName || !email || !password || !confirmPassword) {
+      setError('All fields are required');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoggingIn(true);
+
+    try {
+      await register(email, password, registerName, registerRole);
+      // App component will automatically redirect to dashboard on successful registration
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsLoggingIn(false);
     }
@@ -65,8 +101,10 @@ export function LoginPage() {
             </div>
           )}
 
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+          {/* Conditional form render */}
+          {!showRegister ? (
+          // LOGIN FORM
+          <form onSubmit={handleLogin} className="space-y-4 mb-6">
             {/* Email Field */}
             <div>
               <label className="block text-sm font-medium text-slate-200 mb-2">Email</label>
@@ -138,15 +176,138 @@ export function LoginPage() {
               )}
             </button>
           </form>
+          ) : (
+          // REGISTRATION FORM
+          <form onSubmit={handleRegister} className="space-y-4 mb-6">
+            {/* Name Field */}
+            <div>
+              <label className="block text-sm font-medium text-slate-200 mb-2">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  value={registerName}
+                  onChange={(e) => setRegisterName(e.target.value)}
+                  placeholder="Your full name"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition"
+                  required
+                />
+              </div>
+            </div>
 
-          {/* Divider */}
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-slate-200 mb-2">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Role Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-200 mb-2">Role</label>
+              <select
+                value={registerRole}
+                onChange={(e) => setRegisterRole(e.target.value as UserRole)}
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition"
+              >
+                <option value="RESIDENT" className="bg-slate-900">Resident</option>
+                <option value="SECURITY_GUARD" className="bg-slate-900">Security Guard</option>
+                <option value="ADMIN" className="bg-slate-900">Administrator</option>
+              </select>
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label className="block text-sm font-medium text-slate-200 mb-2">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Confirm Password Field */}
+            <div>
+              <label className="block text-sm font-medium text-slate-200 mb-2">Confirm Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Register Button */}
+            <button
+              type="submit"
+              disabled={isLoading || isLoggingIn}
+              className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition duration-200 flex items-center justify-center gap-2"
+            >
+              {isLoading || isLoggingIn ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+          )}
+
+          {/* Switch between login and register */}
+          <div className="text-center mb-6">
+            <p className="text-slate-300 text-sm">
+              {showRegister ? 'Already have an account? ' : "Don't have an account? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRegister(!showRegister);
+                  setError('');
+                  setEmail('');
+                  setPassword('');
+                  setConfirmPassword('');
+                  setRegisterName('');
+                }}
+                className="text-cyan-400 hover:text-cyan-300 transition font-medium"
+              >
+                {showRegister ? 'Sign In' : 'Create Account'}
+              </button>
+            </p>
+          </div>
+
+          {/* Demo Credentials - only show on login */}
+          {!showRegister && (
+          <>
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px bg-white/10"></div>
             <span className="text-slate-400 text-xs">DEMO CREDENTIALS</span>
             <div className="flex-1 h-px bg-white/10"></div>
           </div>
 
-          {/* Demo Credentials */}
           <div className="space-y-2">
             {demoCredentials.map((cred) => (
               <button
@@ -160,6 +321,8 @@ export function LoginPage() {
               </button>
             ))}
           </div>
+          </>
+          )}
 
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-white/10 text-center text-xs text-slate-400 space-y-2">

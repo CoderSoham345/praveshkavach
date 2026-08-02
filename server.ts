@@ -166,6 +166,104 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
+// Registration Endpoint
+app.post('/api/auth/register', (req, res) => {
+  console.log('[v0] Register attempt');
+  
+  try {
+    const { email, password, name, role } = req.body;
+
+    if (!email || !password || !name || !role) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, password, name, and role are required',
+      });
+    }
+
+    if (!['RESIDENT', 'SECURITY_GUARD', 'ADMIN'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role',
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = testUsers.find(u => u.email === email);
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email already exists',
+      });
+    }
+
+    // Create new user
+    const newUser: any = {
+      id: `user-${Date.now()}`,
+      email,
+      passwordHash: password,
+      name,
+      role,
+      avatar: role === 'ADMIN' ? '👔' : role === 'SECURITY_GUARD' ? '👮' : '👨',
+      building: role === 'RESIDENT' ? 'Test Building' : 'All Buildings',
+      flatNumber: role === 'RESIDENT' ? 'A-100' : undefined,
+      gate: role === 'SECURITY_GUARD' ? 'Main Gate' : undefined,
+      shift: role === 'SECURITY_GUARD' ? 'Morning' : undefined,
+    };
+
+    testUsers.push(newUser);
+    console.log('[v0] User registered:', email, 'role:', role);
+
+    // Auto-login after registration
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    sessionStore.set(token, { userId: newUser.id, expiresAt });
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      token,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        avatar: newUser.avatar,
+        building: newUser.building,
+        flatNumber: newUser.flatNumber,
+        gate: newUser.gate,
+        shift: newUser.shift,
+      },
+    });
+  } catch (error) {
+    console.error('[v0] Register error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during registration',
+    });
+  }
+});
+
+// Logout Endpoint
+app.post('/api/auth/logout', (req, res) => {
+  console.log('[v0] Logout request');
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      sessionStore.delete(token);
+    }
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    console.error('[v0] Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed',
+    });
+  }
+});
+
 // Session validation middleware
 function validateSession(req: express.Request): { userId: string } | null {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -1600,7 +1698,16 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    // Catch-all for SPA - MUST NOT match /api/* routes
     app.get('*', (req, res) => {
+      // API routes should 404, not fall through to index.html
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+          success: false,
+          error: 'API endpoint not found',
+          path: req.path,
+        });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
