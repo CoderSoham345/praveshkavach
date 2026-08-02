@@ -816,17 +816,18 @@ app.post('/api/ocr', async (req, res) => {
     const preprocessingTime = Date.now() - preprocessStart;
     console.log('[v0] Image preprocessing completed:', preprocessingTime, 'ms');
 
-    // Step 2: Call OCR.Space API
+    // Step 2: Call OCR.Space API with optimized parameters
     const ocrStart = Date.now();
-    console.log('[v0] Calling OCR.Space API...');
+    console.log('[v0] Calling OCR.Space API with key:', ocrApiKey.substring(0, 10) + '...');
     
     const formData = new FormData();
     formData.append('apikey', ocrApiKey);
     formData.append('base64Image', `data:image/jpeg;base64,${cleanBase64}`);
-    formData.append('language', 'eng');
-    formData.append('ocrEngine', '2');
-    formData.append('filetype', 'PDF');
-    formData.append('detectOrientation', 'true');
+    formData.append('language', 'eng'); // English for Indian documents
+    formData.append('ocrEngine', '2'); // Engine 2: Tesseract 5.x (best accuracy)
+    formData.append('filetype', 'PDF'); // Treat as document
+    formData.append('detectOrientation', 'true'); // Auto-rotate
+    formData.append('isOverlayRequired', 'false'); // Faster processing
 
     const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
