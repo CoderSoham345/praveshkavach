@@ -27,9 +27,9 @@ export function LoginPage() {
   };
 
   const demoCredentials = [
-    { role: 'Resident', email: 'resident@test.com', password: 'Resident@123' },
-    { role: 'Security Guard', email: 'guard@test.com', password: 'Guard@123' },
-    { role: 'Admin', email: 'admin@test.com', password: 'Admin@123' },
+    { role: 'Admin', email: 'admin@test.com', password: '123456' },
+    { role: 'Security Guard', email: 'guard@test.com', password: '123456' },
+    { role: 'Resident', email: 'resident@test.com', password: '123456' },
   ];
 
   const fillCredentials = (testEmail: string, testPassword: string) => {
