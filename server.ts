@@ -61,28 +61,34 @@ function broadcastEvent(eventType: string, payload: any) {
 // TODO: Replace with real Firebase authentication
 const testUsers = [
   {
-    id: 'resident-1',
-    email: 'resident@test.com',
-    passwordHash: 'Resident@123', // TODO: Use bcrypt hashing in production
-    name: 'Rajesh Sharma',
-    role: 'RESIDENT' as const,
-    avatar: '👨',
+    id: 'admin-1',
+    email: 'admin@test.com',
+    passwordHash: '123456', // For testing only
+    name: 'System Administrator',
+    role: 'ADMIN' as const,
+    avatar: '👔',
+    building: 'All Buildings',
   },
   {
     id: 'guard-1',
     email: 'guard@test.com',
-    passwordHash: 'Guard@123',
-    name: 'Priya Patel',
+    passwordHash: '123456',
+    name: 'Ramesh Patil',
     role: 'SECURITY_GUARD' as const,
     avatar: '👮',
+    gate: 'Main Gate',
+    shift: 'Morning',
+    building: 'Tower A',
   },
   {
-    id: 'admin-1',
-    email: 'admin@test.com',
-    passwordHash: 'Admin@123',
-    name: 'System Administrator',
-    role: 'ADMIN' as const,
-    avatar: '👔',
+    id: 'resident-1',
+    email: 'resident@test.com',
+    passwordHash: '123456',
+    name: 'Soham Gonbhare',
+    role: 'RESIDENT' as const,
+    avatar: '👨',
+    building: 'Pravesh Residency',
+    flatNumber: 'A-702',
   },
 ];
 
@@ -145,6 +151,10 @@ app.post('/api/auth/login', (req, res) => {
         name: user.name,
         role: user.role,
         avatar: user.avatar,
+        building: (user as any).building,
+        flatNumber: (user as any).flatNumber,
+        gate: (user as any).gate,
+        shift: (user as any).shift,
       },
     });
   } catch (error) {
@@ -1497,6 +1507,87 @@ app.get('/api/admin/system-status', (req, res) => {
     },
   });
 });
+
+// Get resident's visitors
+app.get('/api/residents/:residentId/visitors', (req, res) => {
+  const { residentId } = req.params;
+  const residentsVisitors = visitorsStore.filter(v => v.residentId === residentId);
+  res.json({ success: true, visitors: residentsVisitors });
+});
+
+// Get audit logs
+app.get('/api/audit-logs', (req, res) => {
+  res.json({ success: true, logs: auditLogsStore.slice(0, 100) });
+});
+
+// Get analytics
+app.get('/api/analytics', (req, res) => {
+  const total = visitorsStore.length;
+  const approved = visitorsStore.filter(v => v.status === 'APPROVED').length;
+  const rejected = visitorsStore.filter(v => v.status === 'REJECTED').length;
+  const checkedIn = visitorsStore.filter(v => v.status === 'CHECKED_IN').length;
+  const pending = visitorsStore.filter(v => v.status === 'PENDING').length;
+
+  res.json({
+    success: true,
+    analytics: {
+      totalVisitorsToday: total,
+      currentlyInside: checkedIn,
+      pendingApprovals: pending,
+      rejectedVisitorsToday: rejected,
+      avgVerificationTimeSec: 45,
+      peakHour: '10:00 AM',
+      weeklyTrends: [],
+      hourlyTraffic: [],
+      purposeBreakdown: [],
+    },
+  });
+});
+
+// Populate sample buildings
+if (buildingsStore.length === 0) {
+  buildingsStore.push(
+    { id: 'bldg-1', name: 'Tower A', code: 'TWR-A', totalUnits: 120, occupancyRate: 95, managerName: 'Rajesh Kumar' },
+    { id: 'bldg-2', name: 'Tower B', code: 'TWR-B', totalUnits: 100, occupancyRate: 88, managerName: 'Priya Sharma' },
+    { id: 'bldg-3', name: 'Tower C', code: 'TWR-C', totalUnits: 80, occupancyRate: 92, managerName: 'Amit Patel' }
+  );
+}
+
+// Populate sample residents if empty
+if (residentsStore.length === 0) {
+  residentsStore.push(
+    {
+      id: 'resident-1',
+      name: 'Soham Gonbhare',
+      building: 'Tower A',
+      flatNumber: 'A-702',
+      department: 'Engineering',
+      phone: '+91 98765 43210',
+      email: 'soham@example.com',
+      autoApproveGuests: false,
+    },
+    {
+      id: 'resident-2',
+      name: 'Rajesh Sharma',
+      building: 'Tower A',
+      flatNumber: 'A-301',
+      department: 'Management',
+      phone: '+91 99876 54321',
+      email: 'rajesh@example.com',
+      autoApproveGuests: true,
+    },
+    {
+      id: 'resident-3',
+      name: 'Priya Patel',
+      building: 'Tower B',
+      flatNumber: 'B-405',
+      department: 'Finance',
+      phone: '+91 97654 32109',
+      email: 'priya@example.com',
+      autoApproveGuests: false,
+    }
+  );
+}
 
 async function startServer() {
   // Vite middleware for development - MUST come before error handlers
