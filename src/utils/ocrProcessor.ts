@@ -115,15 +115,15 @@ export function processOCROutput(
   } else {
     // Validate document number based on type
     let docValidation = { confidence: 90 };
-    if (docType === 'Aadhaar Card') {
+    if (docType === 'AADHAAR_FRONT' || docType === 'AADHAAR_BACK') {
       docValidation = validateAadhaar(documentNumber);
-    } else if (docType === 'PAN Card') {
+    } else if (docType === 'PAN_CARD') {
       docValidation = validatePAN(documentNumber);
-    } else if (docType === 'Passport') {
+    } else if (docType === 'PASSPORT') {
       docValidation = validatePassport(documentNumber);
-    } else if (docType === 'Driving Licence') {
+    } else if (docType === 'DRIVING_LICENCE') {
       docValidation = validateDrivingLicense(documentNumber);
-    } else if (docType === 'Voter ID') {
+    } else if (docType === 'VOTER_ID') {
       docValidation = validateVoterID(documentNumber);
     }
     fieldLevelConfidence['documentNumber'] = docValidation.confidence;
@@ -202,8 +202,8 @@ export function detectHallucination(field: string, value: string, docType: Docum
   // Check for fabricated addresses
   if (field === 'address') {
     // Empty address on front of Aadhaar/PAN is correct
-    if (docType === 'Aadhaar Card' && value.length === 0) return false;
-    if (docType === 'PAN Card' && value.length === 0) return false;
+    if ((docType === 'AADHAAR_FRONT' || docType === 'AADHAAR_BACK') && value.length === 0) return false;
+    if (docType === 'PAN_CARD' && value.length === 0) return false;
   }
 
   // Check for obviously wrong dates (e.g., 99/99/9999)
@@ -260,7 +260,7 @@ export function mergeOCRDataFrontAndBack(
 
   // For Aadhaar: Front has name/DOB/gender, back has address
   // NEVER overwrite with back data if front already has data
-  if (docType === 'Aadhaar Card') {
+  if (docType === 'AADHAAR_FRONT' || docType === 'AADHAAR_BACK') {
     if (!merged.address && backData.address) {
       merged.address = backData.address;
     }
@@ -290,7 +290,7 @@ export function validateOCRDataAgainstSchema(data: ExtractedDocData): string[] {
   }
 
   // Aadhaar-specific
-  if (data.documentType === 'Aadhaar Card') {
+  if (data.documentType === 'AADHAAR_FRONT' || data.documentType === 'AADHAAR_BACK') {
     if (!data.dob) errors.push('Date of Birth: Not detected');
     if (!data.gender) errors.push('Gender: Not detected');
     const aadhaarValidation = validateAadhaar(data.documentNumber);
@@ -300,7 +300,7 @@ export function validateOCRDataAgainstSchema(data: ExtractedDocData): string[] {
   }
 
   // PAN-specific
-  if (data.documentType === 'PAN Card') {
+  if (data.documentType === 'PAN_CARD') {
     const panValidation = validatePAN(data.documentNumber);
     if (!panValidation.isValid) {
       errors.push(`PAN: ${panValidation.errorMessage}`);

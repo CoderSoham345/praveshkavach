@@ -27,11 +27,55 @@ export const Step2ScanFront: React.FC<Step2ScanFrontProps> = ({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [detectedQrCode, setDetectedQrCode] = useState<string | null>(null);
 
-  // Supported document types restricted strictly to Aadhaar Card and PAN Card
+  // Supported document types - All 20+ types for comprehensive document support
   const supportedDocTypes: DocumentType[] = [
-    'Aadhaar Card',
-    'PAN Card',
+    'AUTOMATIC_DETECTION',
+    'AADHAAR_FRONT',
+    'AADHAAR_BACK',
+    'PAN_CARD',
+    'PASSPORT',
+    'DRIVING_LICENCE',
+    'VOTER_ID',
+    'GOVT_EMPLOYEE_ID',
+    'PRIVATE_EMPLOYEE_ID',
+    'STUDENT_ID',
+    'RC_BOOK',
+    'OCI_CARD',
+    'NREGA_JOB_CARD',
+    'SENIOR_CITIZEN_CARD',
+    'DISABILITY_ID_CARD',
+    'HEALTH_INSURANCE_CARD',
+    'POLICE_ID',
+    'ARMY_ID',
+    'OTHER_GOVT_ID',
+    'OTHER_IDENTITY_DOC',
   ];
+
+  const getDocumentLabel = (type: DocumentType): string => {
+    const labels: Record<DocumentType, string> = {
+      'AUTOMATIC_DETECTION': 'Automatic Detection (Recommended)',
+      'AADHAAR_FRONT': 'Aadhaar Card (Front)',
+      'AADHAAR_BACK': 'Aadhaar Card (Back)',
+      'PAN_CARD': 'PAN Card',
+      'PASSPORT': 'Passport',
+      'DRIVING_LICENCE': 'Driving Licence',
+      'VOTER_ID': 'Voter ID (EPIC)',
+      'GOVT_EMPLOYEE_ID': 'Government Employee ID',
+      'PRIVATE_EMPLOYEE_ID': 'Private Employee ID',
+      'STUDENT_ID': 'Student ID',
+      'RC_BOOK': 'Vehicle Registration Certificate (RC)',
+      'OCI_CARD': 'OCI Card',
+      'NREGA_JOB_CARD': 'NREGA Job Card',
+      'SENIOR_CITIZEN_CARD': 'Senior Citizen Card',
+      'DISABILITY_ID_CARD': 'Disability ID Card',
+      'HEALTH_INSURANCE_CARD': 'Health Insurance Card',
+      'POLICE_ID': 'Police ID',
+      'ARMY_ID': 'Army ID',
+      'OTHER_GOVT_ID': 'Other Government ID',
+      'OTHER_IDENTITY_DOC': 'Other Identity Document',
+    };
+    return labels[type] || type;
+  };
 
   const handleCanvasCaptured = (croppedDataUrl: string, qrCodeData?: string | null) => {
     setCapturedImage(croppedDataUrl);
@@ -65,7 +109,7 @@ export const Step2ScanFront: React.FC<Step2ScanFrontProps> = ({
             <span>SCAN DOCUMENT - FRONT SIDE</span>
           </h2>
           <p className="text-xs text-slate-400">
-            Scanning Aadhaar Card or PAN Card. Capture button will activate automatically once valid document is detected.
+            Scan any government-issued ID document. 20+ document types supported with automatic detection. Capture button will activate once document is detected.
           </p>
         </div>
 

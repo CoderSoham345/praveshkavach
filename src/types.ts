@@ -1,10 +1,7 @@
 export type UserRole = 
   | 'SECURITY_GUARD'
   | 'RESIDENT'
-  | 'RECEPTIONIST'
-  | 'ADMIN'
-  | 'VISITOR'
-  | 'FACILITY_MANAGER';
+  | 'ADMIN';
 
 /**
  * Resident Profile - Stored in Firebase Firestore
@@ -26,14 +23,26 @@ export interface Resident {
 }
 
 export type DocumentType = 
-  | 'Aadhaar Card'
-  | 'PAN Card'
-  | 'Passport'
-  | 'Driving Licence'
-  | 'Employee Card'
-  | 'Voter ID'
-  | 'Student ID'
-  | 'Visitor Pass';
+  | 'AUTOMATIC_DETECTION'
+  | 'AADHAAR_FRONT'
+  | 'AADHAAR_BACK'
+  | 'PAN_CARD'
+  | 'PASSPORT'
+  | 'DRIVING_LICENCE'
+  | 'VOTER_ID'
+  | 'GOVT_EMPLOYEE_ID'
+  | 'PRIVATE_EMPLOYEE_ID'
+  | 'STUDENT_ID'
+  | 'RC_BOOK'
+  | 'OCI_CARD'
+  | 'NREGA_JOB_CARD'
+  | 'SENIOR_CITIZEN_CARD'
+  | 'DISABILITY_ID_CARD'
+  | 'HEALTH_INSURANCE_CARD'
+  | 'POLICE_ID'
+  | 'ARMY_ID'
+  | 'OTHER_GOVT_ID'
+  | 'OTHER_IDENTITY_DOC';
 
 export type WorkflowStep = 
   | 1 // Dashboard

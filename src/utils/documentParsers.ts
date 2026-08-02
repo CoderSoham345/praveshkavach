@@ -20,9 +20,9 @@ export interface DocTypeSchema {
  * Registry of Supported Document Types and their Specific Extraction Schemas
  */
 export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
-  'Aadhaar Card': {
-    type: 'Aadhaar Card',
-    label: 'Aadhaar Card (UIDAI)',
+  'AADHAAR_FRONT': {
+    type: 'AADHAAR_FRONT',
+    label: 'Aadhaar Card (Front - UIDAI)',
     iconName: 'ShieldCheck',
     fields: [
       {
@@ -46,8 +46,8 @@ export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
       { key: 'uidaiInfo', label: 'UIDAI Security Stamp', type: 'text' },
     ],
   },
-  'PAN Card': {
-    type: 'PAN Card',
+  'PAN_CARD': {
+    type: 'PAN_CARD',
     label: 'PAN Card (Income Tax Dept)',
     iconName: 'CreditCard',
     fields: [
@@ -66,8 +66,8 @@ export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
       { key: 'panType', label: 'PAN Type', type: 'select', options: ['Individual', 'Company', 'Firm', 'HUF', 'Trust'], required: true },
     ],
   },
-  'Passport': {
-    type: 'Passport',
+  'PASSPORT': {
+    type: 'PASSPORT',
     label: 'Indian Passport (Republic of India)',
     iconName: 'Globe',
     fields: [
@@ -91,8 +91,8 @@ export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
       { key: 'mrzCode', label: 'MRZ (Machine Readable Zone)', type: 'text' },
     ],
   },
-  'Driving Licence': {
-    type: 'Driving Licence',
+  'DRIVING_LICENCE': {
+    type: 'DRIVING_LICENCE',
     label: 'Driving Licence (RTO)',
     iconName: 'Car',
     fields: [
@@ -115,8 +115,8 @@ export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
       { key: 'issuingAuthority', label: 'Issuing RTO', type: 'text' },
     ],
   },
-  'Voter ID': {
-    type: 'Voter ID',
+  'VOTER_ID': {
+    type: 'VOTER_ID',
     label: 'Voter ID (Election Commission)',
     iconName: 'Vote',
     fields: [
@@ -136,27 +136,8 @@ export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
       { key: 'constituency', label: 'Assembly Constituency', type: 'text' },
     ],
   },
-  'Employee Card': {
-    type: 'Employee Card',
-    label: 'Corporate Employee ID',
-    iconName: 'Briefcase',
-    fields: [
-      {
-        key: 'documentNumber',
-        label: 'Employee ID',
-        type: 'text',
-        placeholder: 'EMP-9982',
-        required: true,
-      },
-      { key: 'fullName', label: 'Employee Name', type: 'text', required: true },
-      { key: 'companyName', label: 'Company Name', type: 'text', required: true },
-      { key: 'department', label: 'Department', type: 'text' },
-      { key: 'designation', label: 'Designation', type: 'text' },
-      { key: 'validTill', label: 'Valid Till', type: 'text' },
-    ],
-  },
-  'Student ID': {
-    type: 'Student ID',
+  'STUDENT_ID': {
+    type: 'STUDENT_ID',
     label: 'University Student ID',
     iconName: 'GraduationCap',
     fields: [
@@ -174,13 +155,135 @@ export const DOCUMENT_SCHEMAS: Record<DocumentType, DocTypeSchema> = {
       { key: 'validTill', label: 'Valid Till', type: 'text' },
     ],
   },
-  'Visitor Pass': {
-    type: 'Visitor Pass',
-    label: 'Temporary Visitor Pass',
-    iconName: 'FileCheck',
+  // Minimal schemas for new document types - extended fields as per requirements
+  'AUTOMATIC_DETECTION': {
+    type: 'AUTOMATIC_DETECTION',
+    label: 'Automatic Detection',
+    iconName: 'Zap',
+    fields: [{ key: 'fullName', label: 'Full Name', type: 'text', required: true }],
+  },
+  'AADHAAR_BACK': {
+    type: 'AADHAAR_BACK',
+    label: 'Aadhaar Card (Back)',
+    iconName: 'MapPin',
     fields: [
-      { key: 'documentNumber', label: 'Pass Number', type: 'text', required: true },
-      { key: 'fullName', label: 'Visitor Name', type: 'text', required: true },
+      { key: 'address', label: 'Complete Address', type: 'text', required: true },
+      { key: 'pinCode', label: 'PIN Code', type: 'text', validationRegex: /^\d{6}$/, required: true },
+      { key: 'state', label: 'State', type: 'text', required: true },
+    ],
+  },
+  'GOVT_EMPLOYEE_ID': {
+    type: 'GOVT_EMPLOYEE_ID',
+    label: 'Government Employee ID',
+    iconName: 'Briefcase',
+    fields: [
+      { key: 'fullName', label: 'Employee Name', type: 'text', required: true },
+      { key: 'documentNumber', label: 'Employee ID', type: 'text', required: true },
+      { key: 'employeeId', label: 'Employee ID Number', type: 'text' },
+      { key: 'companyName', label: 'Department/Ministry', type: 'text' },
+    ],
+  },
+  'PRIVATE_EMPLOYEE_ID': {
+    type: 'PRIVATE_EMPLOYEE_ID',
+    label: 'Private Employee ID',
+    iconName: 'Briefcase',
+    fields: [
+      { key: 'fullName', label: 'Employee Name', type: 'text', required: true },
+      { key: 'documentNumber', label: 'Employee ID', type: 'text', required: true },
+      { key: 'companyName', label: 'Company Name', type: 'text' },
+      { key: 'designation', label: 'Designation', type: 'text' },
+    ],
+  },
+  'RC_BOOK': {
+    type: 'RC_BOOK',
+    label: 'Vehicle Registration Certificate',
+    iconName: 'Car',
+    fields: [
+      { key: 'documentNumber', label: 'Registration Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Owner Name', type: 'text', required: true },
+      { key: 'address', label: 'Owner Address', type: 'text' },
+    ],
+  },
+  'OCI_CARD': {
+    type: 'OCI_CARD',
+    label: 'OCI Card',
+    iconName: 'Globe',
+    fields: [
+      { key: 'documentNumber', label: 'OCI Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Full Name', type: 'text', required: true },
+    ],
+  },
+  'NREGA_JOB_CARD': {
+    type: 'NREGA_JOB_CARD',
+    label: 'NREGA Job Card',
+    iconName: 'CreditCard',
+    fields: [
+      { key: 'documentNumber', label: 'Job Card Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Full Name', type: 'text', required: true },
+    ],
+  },
+  'SENIOR_CITIZEN_CARD': {
+    type: 'SENIOR_CITIZEN_CARD',
+    label: 'Senior Citizen Card',
+    iconName: 'Users',
+    fields: [
+      { key: 'documentNumber', label: 'Card Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Full Name', type: 'text', required: true },
+      { key: 'dob', label: 'Date of Birth', type: 'date', required: true },
+    ],
+  },
+  'DISABILITY_ID_CARD': {
+    type: 'DISABILITY_ID_CARD',
+    label: 'Disability ID Card',
+    iconName: 'HeartHandshake',
+    fields: [
+      { key: 'documentNumber', label: 'Card Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Full Name', type: 'text', required: true },
+    ],
+  },
+  'HEALTH_INSURANCE_CARD': {
+    type: 'HEALTH_INSURANCE_CARD',
+    label: 'Health Insurance Card',
+    iconName: 'Heart',
+    fields: [
+      { key: 'documentNumber', label: 'Policy Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Full Name', type: 'text', required: true },
+    ],
+  },
+  'POLICE_ID': {
+    type: 'POLICE_ID',
+    label: 'Police ID',
+    iconName: 'Shield',
+    fields: [
+      { key: 'documentNumber', label: 'Badge Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Officer Name', type: 'text', required: true },
+    ],
+  },
+  'ARMY_ID': {
+    type: 'ARMY_ID',
+    label: 'Army ID',
+    iconName: 'Shield',
+    fields: [
+      { key: 'documentNumber', label: 'Service Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Officer/Soldier Name', type: 'text', required: true },
+    ],
+  },
+  'OTHER_GOVT_ID': {
+    type: 'OTHER_GOVT_ID',
+    label: 'Other Government ID',
+    iconName: 'CreditCard',
+    fields: [
+      { key: 'documentNumber', label: 'ID Number', type: 'text', required: true },
+      { key: 'fullName', label: 'Full Name', type: 'text', required: true },
+    ],
+  },
+  'OTHER_IDENTITY_DOC': {
+    type: 'OTHER_IDENTITY_DOC',
+    label: 'Other Identity Document',
+    iconName: 'FileText',
+    fields: [
+      { key: 'fullName', label: 'Name', type: 'text', required: true },
+      { key: 'documentNumber', label: 'Document Number', type: 'text' },
     ],
   },
 };
@@ -192,29 +295,29 @@ export function classifyDocumentType(ocrText: string): DocumentType {
   const upper = ocrText.toUpperCase();
 
   if (upper.includes('GOVERNMENT OF INDIA') || upper.includes('AADHAAR') || upper.includes('UIDAI') || /\d{4}\s\d{4}\s\d{4}/.test(upper)) {
-    return 'Aadhaar Card';
+    return 'AADHAAR_FRONT';
   }
   if (upper.includes('INCOME TAX DEPARTMENT') || upper.includes('PERMANENT ACCOUNT NUMBER') || /[A-Z]{5}[0-9]{4}[A-Z]/.test(upper)) {
-    return 'PAN Card';
+    return 'PAN_CARD';
   }
   if (upper.includes('PASSPORT') || upper.includes('REPUBLIC OF INDIA') || upper.includes('P<IND')) {
-    return 'Passport';
+    return 'PASSPORT';
   }
   if (upper.includes('DRIVING') || upper.includes('LICENCE') || upper.includes('MOTOR VEHICLES') || /DL[- ]?\d+/.test(upper)) {
-    return 'Driving Licence';
+    return 'DRIVING_LICENCE';
   }
   if (upper.includes('ELECTION') || upper.includes('COMMISSION') || upper.includes('VOTER') || /[A-Z]{3}[0-9]{7}/.test(upper)) {
-    return 'Voter ID';
+    return 'VOTER_ID';
   }
   if (upper.includes('EMPLOYEE') || upper.includes('CORPORATE') || upper.includes('STAFF')) {
-    return 'Employee Card';
+    return 'PRIVATE_EMPLOYEE_ID';
   }
   if (upper.includes('STUDENT') || upper.includes('UNIVERSITY') || upper.includes('COLLEGE')) {
-    return 'Student ID';
+    return 'STUDENT_ID';
   }
 
   // Default fallback
-  return 'Aadhaar Card';
+  return 'AADHAAR_FRONT';
 }
 
 /**
