@@ -37,8 +37,8 @@ let buildingsStore: any[] = [];
 
 // Telegram Bot Settings Store
 let telegramConfig = {
-  botToken: process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '',
-  defaultChatId: process.env.TELEGRAM_CHAT_ID || '',
+  botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+  defaultChatId: process.env.TELEGRAM_DEFAULT_CHAT_ID || '',
   botEnabled: true,
   lastMessageTime: null as string | null,
 };
@@ -1460,6 +1460,41 @@ app.get('/api/analytics', (req, res) => {
       verificationSuccessRate: total > 0 ? (100 - (rejected / total) * 100) : 0,
     },
     auditLogs: auditLogsStore.slice(0, 20),
+  });
+});
+
+// Admin System Status - Integration Status
+app.get('/api/admin/system-status', (req, res) => {
+  const ocrApiKey = process.env.OCR_SPACE_API_KEY;
+  const telegramToken = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
+  const telegramChatId = process.env.TELEGRAM_DEFAULT_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
+
+  res.json({
+    success: true,
+    systemStatus: {
+      ocr: {
+        name: 'OCR.Space API',
+        status: ocrApiKey ? 'CONFIGURED' : 'NOT_CONFIGURED',
+        configured: !!ocrApiKey,
+        lastUsed: null, // TODO: Track from metrics
+        successRate: 0, // TODO: Calculate from metrics
+        apiKey: ocrApiKey ? `${ocrApiKey.substring(0, 10)}...` : null,
+      },
+      telegram: {
+        name: 'Telegram Bot',
+        status: telegramToken ? 'CONFIGURED' : 'NOT_CONFIGURED',
+        configured: !!telegramToken,
+        botToken: telegramToken ? `${telegramToken.substring(0, 10)}...` : null,
+        chatId: telegramChatId || 'NOT_SET',
+        lastMessageTime: telegramConfig.lastMessageTime,
+        isEnabled: telegramConfig.botEnabled,
+      },
+      server: {
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        nodeVersion: process.version,
+      },
+    },
   });
 });
 
